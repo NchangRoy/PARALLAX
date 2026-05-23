@@ -7,8 +7,6 @@
 void  state_receiver_thread_run(NodeTable* table);  // lance le thread
 void  state_receiver_stop(void);                    // arrête proprement le thread
 
-// ─── Watchdog Thread ──────────────────────────────────────────────────────────
-void  watchdog_thread_run(NodeTable* table);        // lance le thread
-void  watchdog_stop(void);                          // arrête proprement le thread
+                   // arrête proprement le thread
 
 #endif
