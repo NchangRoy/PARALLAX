@@ -10,7 +10,7 @@
  */
 
 typedef struct {
-    void *data;
+
     char function_name[64];
 
 } task_descriptor;
@@ -23,6 +23,7 @@ typedef struct {
 typedef struct {
     worker_node *target_node;
     task_descriptor *task;
+    chunk_data * chunk;
 
 } task_assignment;
 
@@ -36,10 +37,6 @@ create_assignments(
     int node_count
 );
 
-typedef struct {
-    void *chunk;
-    size_t chunk_size;
-} chunk_data;
 
 NodeInfo * get_node_details();
 

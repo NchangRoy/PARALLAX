@@ -202,7 +202,7 @@ create_assignments(
             continue;
         }
 
-        task->data = chunk;
+        
 
         strncpy(task->function_name,
                 function,
@@ -213,16 +213,21 @@ create_assignments(
         ] = '\0';
 
         assignments[i].task = task;
+        assignments[i].chunk=chunk;
 
-        /*
-         * TODO:
-         * map NodeInfo -> worker_node
-         */
-        assignments[i].target_node = NULL;
+        worker_node *wn = malloc(sizeof(worker_node));
 
-        /*
-         * move to next element block
-         */
+        snprintf(wn->uuid, sizeof(wn->uuid),
+                "%s", nodes[i].uuid);
+
+        snprintf(wn->ip, sizeof(wn->ip),
+                "%s", nodes[i].ip);
+
+        wn->port = nodes[i].port;
+
+        assignments[i].target_node = wn;
+
+
         offset += portion;
     }
 

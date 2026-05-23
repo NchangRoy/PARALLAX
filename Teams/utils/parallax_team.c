@@ -9,26 +9,51 @@
 
 
 
-void * thread_func_test(void * arg){
+void *thread_func_test(void *arg){
 
-    worker_context * param=(worker_context * ) arg;
-    printf("Thread with tid %d started \n",param->tid);
+    worker_context *param =
+        (worker_context *)arg;
 
-    printf("to execute function %s \n",param->function_name);
-    printf("with data %p\n ",param->data);
-    sleep(param->tid*3);
+    printf("Thread with tid %d started\n",
+           param->tid);
 
-    
-    printf("Thread  with tid %d resumed  and died\n",param->tid);
+    printf("to execute function %s\n",
+           param->function_name);
+
+    printf("with ip %s\n",
+           param->exec_node->ip);
+
+    printf("sending to node with uuid %s\n",
+           param->exec_node->uuid);
+
+    chunk_data *chunk = param->chunk;
+
+    int *data = (int *)chunk->chunk;
+
+    int count =
+        chunk->chunk_size / sizeof(int);
+
+    printf("Chunk data: ");
+
+    for (int i = 0; i < count; i++) {
+        printf("%d ", data[i]);
+    }
+
+    printf("\n");
+
+    sleep(param->tid * 3);
+
+    printf("Thread with tid %d resumed and died\n",
+           param->tid);
+
     barrier_wait(param->barrier);
-    pthread_exit(NULL);
+
+    return NULL;
 }
 
 
-
-
 /*
-int main(){
+int main(){   
 
 
    
@@ -88,7 +113,7 @@ team *  team_init( int nb_threads) {
 
         context->tid=i;
         context->barrier=new_team->barrier;
-        context->data=NULL;
+        context->chunk=NULL;
        
         new_team->workers[i].context=context;
           
@@ -152,10 +177,10 @@ team *create_and_assign_task(task_assignment *assignments, int nb_assignments)
 
     for (int i = 0; i < nb_assignments; i++) {
 
-        t->workers[i].exec_node = assignments[i].target_node;
+        t->workers[i].context->exec_node = assignments[i].target_node;
 
-        t->workers[i].context->data =
-            assignments[i].task->data;
+        t->workers[i].context->chunk=
+            assignments[i].chunk;
 
         strncpy(
             t->workers[i].context->function_name,

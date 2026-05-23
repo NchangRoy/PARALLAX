@@ -53,7 +53,7 @@ int main() {
     for (int i = 0; i < node_count; i++) {
 
         chunk_data *chunk =
-            (chunk_data *)assignments[i].task->data;
+            (chunk_data *)assignments[i].chunk;
 
         int *chunk_values = (int *)chunk->chunk;
 
@@ -80,7 +80,7 @@ int main() {
         printf("function      : %s\n",
                assignments[i].task->function_name);
 
-        printf("chunk bytes   : %zu\n",
+        printf(" nb of chunk bytes   : %d\n",
                chunk->chunk_size);
 
         printf("chunk ints    : %zu\n",
@@ -118,7 +118,7 @@ int main() {
 
     for (int i = 0; i < node_count; i++) {
 
-        free(assignments[i].task->data);
+        free(assignments[i].chunk);
 
         free(assignments[i].task);
     }

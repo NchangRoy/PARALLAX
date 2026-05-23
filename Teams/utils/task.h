@@ -8,4 +8,11 @@ typedef  struct {
 } worker_node;
 
 
+
+typedef struct {
+    void *chunk;
+    int  chunk_size;
+} chunk_data;
+
+
 #endif

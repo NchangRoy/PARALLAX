@@ -18,11 +18,16 @@ typedef struct {
 } compute_spec;
 
 
+
+
+
+
 typedef struct {
     int tid;
     barrier_t * barrier;
     char function_name[64];
-    void * data;
+    chunk_data * chunk;
+    worker_node * exec_node;
 } worker_context;
 
 
@@ -31,7 +36,7 @@ typedef struct {
     int id;
     thread_func func;
     worker_context * context;
-    worker_node * exec_node;
+    
     
 
 } worker_t;
