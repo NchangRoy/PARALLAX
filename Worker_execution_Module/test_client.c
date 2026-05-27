@@ -48,10 +48,18 @@ int main() {
 
         "#include <stdio.h>\n"
         "\n"
-        "int main() {\n"
+        "typedef void *(*fn)(void *);\n"
+        "\n"
+        "void *my_dummy_fxn(void *arg) {\n"
         "    printf(\"Hello from generated program!\\n\");\n"
-        "    return 0;\n"
+        "    return NULL;\n"
         "}\n"
+        "\n"
+        "fn matcher(char *name) {\n"
+        "    return my_dummy_fxn;\n"
+        "}\n"
+        "\n"
+        "int main() { return 0; }\n"
 
         
     );
@@ -102,10 +110,14 @@ int main() {
         return 1;
     }
 
-    recv_task_t task;
-    memset(&task, 0, sizeof(task));
-    strcpy(task.function_name, "my_test_function");
-    task.data_count = 0;
+    size_t data_len = strlen("HelloFromTestClient") + 1;
+    size_t task_size = sizeof(recv_task_t) + data_len;
+    
+    recv_task_t *task = malloc(task_size);
+    memset(task, 0, task_size);
+    strcpy(task->function_name, "my_test_function");
+    task->data_count = 1;
+    strcpy((char *)task->data, "HelloFromTestClient");
 
     memset(&msg_header, 0, sizeof(msg_header));
     msg_header.mq_type = 1;
@@ -114,10 +126,12 @@ int main() {
     // It fits perfectly because it was randomly generated to be 7 chars + \0
     memcpy(&msg_header.type, task_mq_name, strlen(task_mq_name) + 1);
     
-    msg_header.size = sizeof(recv_task_t);
+    msg_header.size = task_size;
 
     write(sock2, &msg_header, sizeof(message_t));
-    write(sock2, &task, msg_header.size);
+    write(sock2, task, msg_header.size);
+    
+    free(task);
     
     printf("[Master] Sent recv_task_t using target msg_type: %s\n", task_mq_name);
 

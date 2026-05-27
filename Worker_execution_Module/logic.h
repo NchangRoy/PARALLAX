@@ -3,5 +3,6 @@
 
 
 typedef void *(*fn)(void *);
+fn matcher(char *name);
 
 #endif

@@ -64,12 +64,11 @@ void * execution_thread_func(void * arg){
     int mq_id = entry->queue_id;
 
     //compile the program and generate binary
-    int pid=fork();
-     if (pid == 0) {
+   int pid = fork();
 
-        
+    if (pid == 0) {
 
-       char *args[] = {
+        char *args[] = {
             "gcc",
             prog_name,
             "logic.c",
@@ -80,11 +79,14 @@ void * execution_thread_func(void * arg){
         };
 
         execvp("gcc", args);
-        perror("execvp failed");
-    } else {
-        wait(NULL);
+
+        perror("gcc exec failed");
+        exit(1);
     }
 
+    wait(NULL);
+
+    
 
 
 
@@ -106,6 +108,32 @@ void * execution_thread_func(void * arg){
         printf("received function %s\n",task->function_name);
         printf("received data %p\n",task->data);
         
+
+        /* execution phase */
+
+    int run_pid = fork();
+
+    if (run_pid == 0) {
+
+        char binary_path[128];
+
+        snprintf(binary_path,
+                sizeof(binary_path),
+                "./%s",
+                prog->prog_name);
+
+        char *arg[] = {
+            binary_path,
+            task->function_name,
+            (char *)task->data,
+            NULL
+        };
+
+        execvp(binary_path, arg);
+
+        perror("binary exec failed");
+        exit(1);
+    }
 
     }
 
