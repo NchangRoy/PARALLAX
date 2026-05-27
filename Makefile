@@ -1,6 +1,6 @@
 CC      = gcc
 CFLAGS  = -Wall -Wextra -g -pthread
-TARGET  = parallax
+TARGET  = parallax_agent
 
 # Sources communes
 SRCS = main.c \
@@ -8,6 +8,8 @@ SRCS = main.c \
        Agent_Init/monitoring/Monitoring.c \
 	   Agent_Init/network/network_agent.c \
 	   Controller/state_receiver/state_receiver.c \
+	   Controller/state_receiver/persistence.c \
+	   Controller/state_receiver/node_table.c \
 
 # Détection OS
 UNAME := $(shell uname)

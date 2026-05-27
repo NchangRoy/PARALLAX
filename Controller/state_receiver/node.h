@@ -85,4 +85,7 @@ NodeInfo* node_table_find(NodeTable* table, const char* uuid);
 NodeInfo* node_table_add(NodeTable* table, const char* uuid,
                           const char* ip, int port);
 
+// Instance globale de la table
+extern NodeTable g_node_table;
+
 #endif /* NODE_H */
