@@ -8,41 +8,18 @@
 
 //create a message queue for a particualr message tytpe
 map_registry * registry=NULL;
-
-/*
- * Libere une entree de registry allouee dynamiquement.
- * Cette fonction est passee a destroy_list comme callback de nettoyage.
- */
-static void destroy_map_entry(void *data)
-{
-    free(data);
-}
-
-/*
- * Cree une queue System V associee a un type de message logique.
- * L'association msg_type -> msgid est conservee dans la registry globale.
- */
-char * create_mq(char *msg_type, int msg_len)
+int create_mq(char *msg_type, int msg_len)
 {       
     //initiliaze map registry for mapping queue to msg  type
     if (registry == NULL) {
-        registry =(map_registry *) malloc(sizeof(map_registry));
-        if (!registry) return NULL;
+        registry = malloc(sizeof(map_registry));
+        if (!registry) return -1;
 
         registry->counter = 0;
         registry->base_path = "/tmp";
         registry->head = NULL;
     }
-    char random_msg_type[64];
-    if(msg_type==NULL){
-        const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        for (int i = 0; i < 63; i++) {
-            int key = rand() % (int)(sizeof(charset) - 1);
-            random_msg_type[i] = charset[key];
-        }
-        random_msg_type[63] = '\0';
-        msg_type = random_msg_type;
-    }
+
     int id = registry->counter++;
     //create key
     key_t key = ftok(registry->base_path, (int)(id & 0xFF));
@@ -50,11 +27,11 @@ char * create_mq(char *msg_type, int msg_len)
     int msgid = msgget(key, IPC_CREAT | 0666);
     if (msgid < 0) {
         perror("Error creating queue");
-        return NULL;
+        return -1;
     }
     //save to map registry
-    map_entry *entry = (map_entry *)malloc(sizeof(map_entry));
-    if (!entry) return NULL;
+    map_entry *entry = malloc(sizeof(map_entry));
+    if (!entry) return -1;
 
     strncpy(entry->mq_path, registry->base_path, sizeof(entry->mq_path));
     entry->mq_path[sizeof(entry->mq_path)-1] = '\0';
@@ -63,7 +40,7 @@ char * create_mq(char *msg_type, int msg_len)
     entry->msg_type[sizeof(entry->msg_type)-1] = '\0';
 
     entry->msg_len = msg_len;
-    entry->queue_id = msgid;
+    entry->queue_id = id;
 
     if (registry->head == NULL) {
         registry->head = create_node(entry);
@@ -73,19 +50,12 @@ char * create_mq(char *msg_type, int msg_len)
         push_back(registry->head, new_node);
     }
 
-    return entry->msg_type;
+    return msgid;
 }
 
 
-/*
- * Recherche dans la registry la queue associee a un type de message donne.
- * Retourne NULL si la registry n'existe pas ou si le type est introuvable.
- */
 map_entry * find_by_msg_type(char *msg_type)
 {
-    if (!registry)
-        return NULL;
-
     node *temp = registry->head;
 
     while (temp != NULL) {
@@ -101,13 +71,9 @@ map_entry * find_by_msg_type(char *msg_type)
     return NULL;
 }
 
-/*
- * Supprime toutes les queues System V creees par le module.
- * Libere aussi les entrees de registry et remet registry a NULL.
- */
 void destroy_queues()
 {
-    if (!registry)
+    if (!registry || !registry->head)
         return;
 
     node *temp = registry->head;
@@ -126,8 +92,4 @@ void destroy_queues()
 
         temp = temp->next;
     }
-
-    destroy_list(&registry->head, destroy_map_entry);
-    free(registry);
-    registry = NULL;
 }

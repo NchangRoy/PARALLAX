@@ -22,7 +22,7 @@ typedef struct {
 
 extern map_registry * registry;
 
-char * create_mq(char *msg_type, int msg_len);
+int create_mq(char *msg_type, int msg_len);
 map_entry * find_by_msg_type(char *msg_type);
 void destroy_queues();
 #endif

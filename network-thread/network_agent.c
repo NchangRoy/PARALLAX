@@ -10,6 +10,7 @@
 #include<sys/msg.h>
 #include<sys/socket.h>
 #include<unistd.h>
+#include<stddef.h>
 
 #define NETWORK_AGENT_MTYPE 1L
 #define NETWORK_AGENT_MAX_DATA 65536
@@ -44,7 +45,7 @@ static pthread_mutex_t registry_lock = PTHREAD_MUTEX_INITIALIZER;
 static ssize_t read_exact(int fd, void *buffer, size_t size)
 {
     size_t total = 0;
-    char *cursor = buffer;
+    char *cursor = (char *)buffer;
 
     while (total < size) {
         ssize_t n = read(fd, cursor + total, size - total);
@@ -74,7 +75,7 @@ static map_entry *get_or_create_mq(char *msg_type)
 
     map_entry *entry = find_by_msg_type(msg_type);
     if (entry == NULL) {
-        if (create_mq(msg_type, NETWORK_AGENT_MAX_DATA) >= 0)
+        if (create_mq(msg_type, NETWORK_AGENT_MAX_DATA) != NULL)
             entry = find_by_msg_type(msg_type);
     }
 
@@ -164,7 +165,7 @@ void * socket_listener(void * args){
             continue;
         }
 
-        size_t payload_size = sizeof(item.type) + sizeof(item.size) + item.size;
+        size_t payload_size = offsetof(queued_message, data) - sizeof(long) + item.size;
         if (msgsnd(entry->queue_id, &item, payload_size, 0) < 0)
             perror("msgsnd incoming");
     }
@@ -210,7 +211,7 @@ void * socket_sender(void * args){
         if (remote == NULL)
             continue;
 
-        message_t *message = malloc(sizeof(message_t) + item.size);
+        message_t *message = (message_t *)malloc(sizeof(message_t) + item.size);
         if (message == NULL) {
             close(remote->sockfd);
             free(remote);
@@ -252,7 +253,7 @@ void network_start(){
     }
 
     //create recieving message queue to store outgoing messages
-    if (create_mq("outgoing", NETWORK_AGENT_MAX_DATA) < 0) {
+    if (create_mq("outgoing", NETWORK_AGENT_MAX_DATA) == NULL) {
         atomic_store(&agent_running, 0);
         cleanup_agent();
         return;
@@ -351,8 +352,7 @@ void send_msg(char * Ip, int port, message_t*  message ){
     if (message->size > 0)
         memcpy(item.data, message->data, message->size);
 
-    size_t payload_size = sizeof(item.ip) + sizeof(item.port) +
-                          sizeof(item.type) + sizeof(item.size) + item.size;
+    size_t payload_size = offsetof(outgoing_message, data) - sizeof(long) + item.size;
 
     if (msgsnd(outgoing_mq->queue_id, &item, payload_size, 0) < 0)
         perror("msgsnd outgoing");
