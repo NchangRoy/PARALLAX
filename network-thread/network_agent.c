@@ -12,11 +12,6 @@
 #include<unistd.h>
 #include<stddef.h>
 
-#define NETWORK_AGENT_MTYPE 1L
-#define NETWORK_AGENT_MAX_DATA 65536
-
-
-
 static pthread_t listener_thread;
 static pthread_t sender_thread;
 static connection *local_connection = NULL;
@@ -136,7 +131,7 @@ void * socket_listener(void * args){
             ssize_t data_read = read_exact(client_fd, item.data, item.size);
             if (data_read != (ssize_t)item.size) {
                 close(client_fd);
-                continue;
+                continue;https://github.com/NchangRoy/PARALLAX
             }
         }
 
@@ -228,7 +223,7 @@ void * socket_sender(void * args){
  * La fonction cree le listener, initialise la queue outgoing, puis lance
  * les threads d'ecoute et d'envoi sans bloquer l'appelant.
  */
-void * network_start(void *){
+void network_start(){
     if (atomic_exchange(&agent_started, 1))
         return NULL;
 
