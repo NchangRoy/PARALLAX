@@ -1,6 +1,10 @@
 #ifndef STATE_MESSAGE_H
 #define STATE_MESSAGE_H
 
+#define MSG_HELLO           1
+#define MSG_HEARTBEAT       2
+#define MSG_HEARTBEAT_INIT  3
+
 #include <stdint.h>
 #include <time.h>
 
@@ -8,6 +12,7 @@ typedef struct{
     char uuid[37]; // 36 chars + null terminator
     char ip[16];
     int port;
+    int type;
 
     // CPU
     float cpu_usage;

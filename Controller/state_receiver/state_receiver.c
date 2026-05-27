@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include "node.h"
-#include "message.h"
+#include "state_message.h"
 #include "state_receiver.h"
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -153,7 +153,7 @@ void metrics_flush_now(void) {
         fprintf(f, "%ld,%.4f,%.4f,%ld,%.4f,%ld,%d,%.4f,%.4f\n",
                 (long)local[i].ts,
                 m->cpu_usage, m->ram_usage, m->ram_used_mb,
-                m->disk_usage, m->disk_used_gb,
+                m->disk_usage, m->disk_used_mb,
                 m->queue_len, m->score, m->load_avg);
 
         fclose(f);
@@ -254,7 +254,7 @@ NodeInfo* node_table_add(NodeTable* table, const char* uuid,
 //  HANDLERS DE MESSAGES
 // ════════════════════════════════════════════════════════════════════════════
 
-static void register_node(NodeTable* table, NetworkMessage* msg) {
+static void register_node(NodeTable* table, MachineMetrics* msg) {
     pthread_mutex_lock(&table->lock);
 
     if (node_table_find(table, msg->uuid)) {
@@ -276,7 +276,7 @@ static void register_node(NodeTable* table, NetworkMessage* msg) {
         persist_node_snapshot(node);
 }
 
-static void update_heartbeat(NodeTable* table, NetworkMessage* msg) {
+static void update_heartbeat(NodeTable* table, MachineMetrics* msg) {
     pthread_mutex_lock(&table->lock);
 
     NodeInfo* node = node_table_find(table, msg->uuid);
@@ -288,15 +288,17 @@ static void update_heartbeat(NodeTable* table, NetworkMessage* msg) {
 
     node->last_heartbeat       = time(NULL);
     node->metrics.cpu_usage    = msg->cpu_usage;
-    node->metrics.ram_usage    = msg->ram_usage;
-    node->metrics.ram_used_mb  = msg->ram_used_mb;
+    node->metrics.ram_usage    = msg->mem_usage;
+    node->metrics.ram_used_mb  = msg->mem_used_mb;
     node->metrics.disk_usage   = msg->disk_usage;
-    node->metrics.disk_used_gb = msg->disk_used_gb;
+    node->metrics.disk_used_mb = msg->disk_used_mb;
     node->metrics.queue_len    = msg->queue_len;
     node->metrics.score        = msg->score;
-    node->metrics.load_avg     = msg->load_avg;
+    node->metrics.load_avg[0]  = msg->load_avg[0];
+    node->metrics.load_avg[1]  = msg->load_avg[1];
+    node->metrics.load_avg[2]  = msg->load_avg[2];
 
-    if (msg->cpu_usage > 0.85f || msg->ram_usage > 0.85f) {
+    if (msg->cpu_usage > 0.85f || msg->mem_usage > 0.85f) {
         node->status = NODE_SURCHARGE;
         printf("[StateReceiver] ⚡ Nœud %s SURCHARGE\n", node->uuid);
     } else {
@@ -317,7 +319,7 @@ static void update_heartbeat(NodeTable* table, NetworkMessage* msg) {
     metrics_buf_push(uuid_copy, ts, &mcopy);
 }
 
-static void init_heartbeat(NodeTable* table, NetworkMessage* msg) {
+static void init_heartbeat(NodeTable* table, MachineMetrics* msg) {
     pthread_mutex_lock(&table->lock);
 
     NodeInfo* node = node_table_find(table, msg->uuid);
@@ -331,8 +333,8 @@ static void init_heartbeat(NodeTable* table, NetworkMessage* msg) {
         node->hardware.cpu_cores            = msg->cpu_cores;
         node->hardware.cpu_threads_per_core = msg->cpu_threads_per_core;
         node->hardware.cpu_freq_mhz         = msg->cpu_freq_mhz;
-        node->hardware.ram_total_mb         = msg->ram_total_mb;
-        node->hardware.disk_total_gb        = msg->disk_total_gb;
+        node->hardware.ram_total_mb         = msg->mem_total_mb;
+        node->hardware.disk_total_gb        = msg->disk_total_mb;
         strncpy(node->hardware.cpu_model,
                 msg->cpu_model,     sizeof(node->hardware.cpu_model)     - 1);
         strncpy(node->hardware.disk_mount,
@@ -348,7 +350,7 @@ static void init_heartbeat(NodeTable* table, NetworkMessage* msg) {
 
     node->last_heartbeat    = time(NULL);
     node->metrics.cpu_usage = msg->cpu_usage;
-    node->metrics.ram_usage = msg->ram_usage;
+    node->metrics.ram_usage = msg->mem_usage;
     node->metrics.queue_len = msg->queue_len;
     node->metrics.score     = msg->score;
     node->status            = NODE_ACTIF;
@@ -388,7 +390,7 @@ static void* _receiver_loop(void* arg) {
 
     printf("[StateReceiver] Démarré (msqid=%d)\n", msqid);
 
-    NetworkMessage msg;
+    MachineMetrics msg;
 
     while (atomic_load(&receiver_running)) {
         ssize_t ret = msgrcv(msqid, &msg, sizeof(msg) - sizeof(long),

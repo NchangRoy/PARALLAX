@@ -5,8 +5,8 @@
 #include <sys/stat.h>
 
 // ===== CONSTANTS =====
-#define UUID_FILE "../parallax/parallax_uuid.dat"
-#define CONF_FILE "../parallax/parallax.conf"
+#define UUID_FILE "parallax_uuid.dat"
+#define CONF_FILE "parallax.conf"
 #define CONFIG_CHECK_INTERVAL 2
 #define UUID_LENGTH 37 // 36 chars + '\0'
 

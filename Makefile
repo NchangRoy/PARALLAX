@@ -30,7 +30,8 @@ endif
 INCLUDES = -I./Agent_Init \
 			-I./Agent_Init/network \
 			-I./Agent_Init/monitoring \
-		   	-I./Controller/state_receiver 
+		   	-I./Controller/state_receiver \
+			-I./parallax
 
 all: $(TARGET)
 

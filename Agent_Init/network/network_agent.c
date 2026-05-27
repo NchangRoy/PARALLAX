@@ -238,7 +238,7 @@ void * socket_sender(void * args){
  * La fonction cree le listener, initialise la queue outgoing, puis lance
  * les threads d'ecoute et d'envoi sans bloquer l'appelant.
  */
-void network_thread_run(){
+void *network_thread_run(void *args){
     if (atomic_exchange(&agent_started, 1))
         return;
 

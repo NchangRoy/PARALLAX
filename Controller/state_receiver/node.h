@@ -46,7 +46,7 @@ typedef struct {
     long  disk_used_mb;
     int   queue_len;
     float score;
-    float load_avg;
+    float load_avg[3];
 } NodeMetrics;
 
 // ─── Représentation complète d'un nœud ───────────────────────────────────────
