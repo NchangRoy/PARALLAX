@@ -148,7 +148,7 @@ void * socket_listener(void * args){
             ssize_t data_read = read_exact(client_fd, item.data, item.size);
             if (data_read != (ssize_t)item.size) {
                 close(client_fd);
-                continue;
+                continue;https://github.com/NchangRoy/PARALLAX
             }
         }
 
@@ -237,7 +237,7 @@ void * socket_sender(void * args){
  * La fonction cree le listener, initialise la queue outgoing, puis lance
  * les threads d'ecoute et d'envoi sans bloquer l'appelant.
  */
-void start(){
+void network_start(){
     if (atomic_exchange(&agent_started, 1))
         return;
 
@@ -288,7 +288,7 @@ void start(){
  * La fonction signale l'arret aux threads, debloque le listener, attend les
  * threads avec pthread_join, puis libere les ressources.
  */
-void stop(){
+void network_stop(){
     if (!atomic_load(&agent_started))
         return;
 
