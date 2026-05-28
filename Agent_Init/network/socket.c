@@ -78,7 +78,7 @@ connection *create_listener(char *Ip, int port, int backlog)
     addr.sin_port = htons(port);
 
     // 👉 LOCAL DEFAULT
-    const char *bind_ip = (Ip == NULL) ? "127.0.0.1" : Ip;
+   const char *bind_ip = (Ip == NULL) ? "0.0.0.0" : Ip;
 
     if (inet_pton(AF_INET, bind_ip, &addr.sin_addr) <= 0) {
         perror("inet_pton");

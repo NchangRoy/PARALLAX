@@ -7,7 +7,7 @@
 #define NETWORK_AGENT_MAX_DATA 65536
 typedef struct {
     long mtype;
-    uint64_t type;
+    char type[64];
     uint64_t size;
     char data[NETWORK_AGENT_MAX_DATA];
 } queued_message;
@@ -16,7 +16,7 @@ typedef struct {
     long mtype;
     char ip[16];
     int port;
-    uint64_t type;
+    char type[64];
     uint64_t size;
     char data[NETWORK_AGENT_MAX_DATA];
 } outgoing_message;

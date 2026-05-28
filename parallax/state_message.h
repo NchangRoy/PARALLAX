@@ -5,6 +5,13 @@
 #define MSG_HEARTBEAT       2
 #define MSG_HEARTBEAT_INIT  3
 
+
+
+#define HELLO_TYPE "HELLO"
+#define HB_TYPE "HB"
+#define HB_INIT_TYPE "HB_INIT"
+
+
 #include <stdint.h>
 #include <time.h>
 

@@ -65,7 +65,8 @@ void *monitoring_thread_run(void *arg){
             message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
             if (pkt) {
                 pkt->mq_type=1;
-                pkt->type = MSG_HEARTBEAT_INIT;
+               
+                strcpy(pkt->type,HB_INIT_TYPE);
                 pkt->size = sizeof(MachineMetrics);
                 memcpy(pkt->data, &m, sizeof(MachineMetrics));
 
@@ -84,7 +85,7 @@ void *monitoring_thread_run(void *arg){
             message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
             if (pkt) {
                 pkt->mq_type=1;
-                pkt->type = MSG_HEARTBEAT;
+                strcpy(pkt->type,HB_TYPE);
                 pkt->size = sizeof(MachineMetrics);
                 memcpy(pkt->data, &m, sizeof(MachineMetrics));
                 send_msg("192.168.50.1", 9000, pkt);

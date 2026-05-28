@@ -10,8 +10,9 @@
 #include <string.h>
 #include <sys/msg.h>
 #include <sys/socket.h>
+#include <netinet/in.h>     
 #include <unistd.h>
-
+#include <arpa/inet.h>
 #define NETWORK_AGENT_MTYPE 1L
 #define NETWORK_AGENT_MAX_DATA 65536
 
@@ -89,6 +90,9 @@ static void cleanup_agent() {
  */
 void *socket_listener(void *args) {
   connection *local_conn = (connection *)args;
+
+
+   printf("\n\n\n starting reciever thread \n\n");
   /*
       1. listen for new message on the socket
       2. when it receives a new message , it deserialize it into message_t
@@ -96,8 +100,44 @@ void *socket_listener(void *args) {
      the data into using hte find_by_msg_type function
       4. it then write the data into that message queue
   */
+  printf("received something 1\n");
   while (atomic_load(&agent_running)) {
-    int client_fd = accept(local_conn->sockfd, NULL, NULL);
+
+     printf("received something 2\n");
+     printf("waiting for connection...\n");
+
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    int client_fd = accept(
+        local_conn->sockfd,
+        (struct sockaddr *)&client_addr,
+        &client_len
+    );
+
+    if (client_fd < 0) {
+        if (!atomic_load(&agent_running))
+            break;
+
+        perror("accept");
+        continue;
+    }
+
+    char client_ip[INET_ADDRSTRLEN];
+
+    inet_ntop(
+        AF_INET,
+        &client_addr.sin_addr,
+        client_ip,
+        sizeof(client_ip)
+    );
+
+    printf(
+        "Client connected from %s:%d (fd=%d)\n",
+        client_ip,
+        ntohs(client_addr.sin_port),
+        client_fd
+    );
 
     if (client_fd < 0) {
       if (!atomic_load(&agent_running))
@@ -107,6 +147,8 @@ void *socket_listener(void *args) {
       perror("accept");
       continue;
     }
+
+   
 
     message_t header;
     ssize_t header_read = read_exact(client_fd, &header, sizeof(header));
@@ -125,7 +167,9 @@ void *socket_listener(void *args) {
     queued_message item;
     memset(&item, 0, sizeof(item));
     item.mtype = NETWORK_AGENT_MTYPE;
-    item.type = header.type;
+  
+    strcpy(item.type,header.type);
+    strcpy(item.type,header.type);
     item.size = header.size;
 
     if (item.size > 0) {
@@ -139,6 +183,8 @@ void *socket_listener(void *args) {
     close(client_fd);
 
     char msg_type[64];
+
+    printf("received message with type %lu\n", (unsigned long)item.type);
     snprintf(msg_type, sizeof(msg_type), "%lu", (unsigned long)item.type);
 
     map_entry *entry = get_or_create_mq(msg_type);
@@ -163,6 +209,8 @@ void *socket_listener(void *args) {
  * ouvre une connexion vers IP + port, puis transmet le paquet.
  */
 void *socket_sender(void *args) {
+
+ 
   map_entry *outgoing_mq = (map_entry *)args;
   /*
   this is continously checking for message in the message queue,
@@ -195,14 +243,15 @@ void *socket_sender(void *args) {
     if (remote == NULL)
       continue;
 
-    message_t *message = (message_t *)malloc(sizeof(message_t) + item.size);
+    message_t *message = (message_t *)calloc(1, sizeof(message_t) + item.size);
     if (message == NULL) {
       close(remote->sockfd);
       free(remote);
       continue;
     }
 
-    message->type = item.type;
+   
+    strcpy(message->type,item.type);
     message->size = item.size;
     if (item.size > 0)
       memcpy(message->data, item.data, item.size);
@@ -230,7 +279,9 @@ void *network_thread_run(void *args) {
   atomic_store(&agent_running, 1);
 
   // create listening socket for the local machine
-  local_connection = create_listener("127.0.0.1", 9000, 1);
+  local_connection = create_listener("0.0.0.0", 9000, 1);
+
+  
   if (local_connection == NULL) {
     atomic_store(&agent_running, 0);
     atomic_store(&agent_started, 0);
@@ -257,6 +308,7 @@ void *network_thread_run(void *args) {
   // start thread to listen for messages in outgoing mq and send them
   if (pthread_create(&sender_thread, NULL, socket_sender,
                      (void *)outgoing_mq) != 0) {
+
     atomic_store(&agent_running, 0);
     shutdown(local_connection->sockfd, SHUT_RDWR);
     close(local_connection->sockfd);
@@ -265,6 +317,7 @@ void *network_thread_run(void *args) {
     cleanup_agent();
     return NULL;
   }
+
   return NULL;
 }
 
@@ -328,7 +381,8 @@ void send_msg(char *Ip, int port, message_t *message) {
   item.mtype = NETWORK_AGENT_MTYPE;
   strncpy(item.ip, Ip, sizeof(item.ip) - 1);
   item.port = port;
-  item.type = message->type;
+ 
+  strcpy(item.type,message->type);
   item.size = message->size;
 
   if (message->size > 0)

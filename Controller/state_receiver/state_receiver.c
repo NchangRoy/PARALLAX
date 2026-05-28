@@ -151,6 +151,7 @@ static void init_heartbeat(MachineMetrics* msg) {
 
 void * heartbeat_init_func(void * arg){
         //parse entry
+          printf("Entered here 4\n");
         map_entry * heartbeat_entry=(map_entry * )arg;
         queued_message qmsg;
         while(1){
@@ -169,6 +170,8 @@ void * heartbeat_init_func(void * arg){
 }
 
 void * heartbeat_func(void * arg){
+
+      printf("Entered here 4\n");
      map_entry * heartbeat_entry=(map_entry * )arg;
         queued_message qmsg;
         while(1){
@@ -187,6 +190,7 @@ void * heartbeat_func(void * arg){
 }
 
 void * hello_func(void * arg){
+        printf("Entered here 3\n");
      map_entry * heartbeat_entry=(map_entry * )arg;
         queued_message qmsg;
         while(1){
@@ -215,6 +219,8 @@ static atomic_int  receiver_running = 0;
  */
 void* state_receiver_thread_run(void* arg) {
     (void)arg;
+
+    printf("Started here");
     
     // Initialisation de la table globale
     node_table_init(&g_node_table);
@@ -227,9 +233,19 @@ void* state_receiver_thread_run(void* arg) {
     flusher_start();
 
     // Ouverture de la file de messages IPC via le network_agent
-    char * mq_heartbeat_init_str = create_mq("MSG_HEARTBEAT_INIT", sizeof(queued_message));
-    char * mq_heartbeat_str = create_mq("MSG_HEARTBEAT", sizeof(queued_message));
-    char * mq_hello_str = create_mq("MSG_HELLO", sizeof(queued_message));
+ 
+
+
+
+    
+    char * mq_heartbeat_init_str = create_mq(HB_INIT_TYPE, sizeof(queued_message));
+
+    
+    char * mq_heartbeat_str = create_mq(HB_TYPE, sizeof(queued_message));
+
+    
+
+    char * mq_hello_str = create_mq(HELLO_TYPE, sizeof(queued_message));
     
 
 
@@ -243,7 +259,17 @@ void* state_receiver_thread_run(void* arg) {
     map_entry * heartbeat=find_by_msg_type(mq_heartbeat_str);
     map_entry * hello=find_by_msg_type(mq_hello_str);
     if (!hearbeat_init) {
-        fprintf(stderr, "[StateReceiver] Queue STAT introuvable\n");
+        fprintf(stderr, "[StateReceiver] heartbeat init queue not created \n");
+        return NULL;
+    }
+
+     if (!heartbeat) {
+        fprintf(stderr, "[StateReceiver] heartbeat  queue not created \n");
+        return NULL;
+    }
+
+     if (!hello) {
+        fprintf(stderr, "[StateReceiver] hello queue not created \n");
         return NULL;
     }
     pthread_t hearbeat_init_thread;
@@ -264,7 +290,7 @@ void* state_receiver_thread_run(void* arg) {
     }
     //kill threads here
 
-    
+
     printf("[StateReceiver] Arrêté proprement\n");
     return NULL;
 }

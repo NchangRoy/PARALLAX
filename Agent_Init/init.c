@@ -74,7 +74,8 @@ static void send_hello(void) {
     
     message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
     if (pkt) {
-        pkt->type = MSG_HELLO;
+       
+        strcpy(pkt->type,HELLO_TYPE);
         pkt->size = sizeof(MachineMetrics);
         memcpy(pkt->data, &msg, sizeof(MachineMetrics));
         send_msg("192.168.50.1", 9000, pkt);
@@ -104,7 +105,7 @@ static AgentRole read_role(void) {
 
 static void start_threads(void){
     // ===== COMMON THREADS =====
-    if (!agent.threads.monitoring_active) {
+    if (!agent.threads.monitoring_active && agent.role!=ROLE_CONTROLLER) {
         pthread_create(&agent.threads.monitoring, NULL, monitoring_thread_run, NULL);
         agent.threads.monitoring_active = 1;
         printf("[THREAD] Monitoring thread started\n");
@@ -204,9 +205,11 @@ void initialize_agent(void){
     start_threads();
     
     // 4. Send HELLO after network thread is started (queue exists)
-    // Give network thread time to initialize
+    // Give network thread time tconnection o initialize
     sleep(1);
-    send_hello();
+    if (agent.role != ROLE_CONTROLLER) {
+        send_hello();
+    }
 
     // 5. Start config watcher in main thread (blocking)
     watch_config();
