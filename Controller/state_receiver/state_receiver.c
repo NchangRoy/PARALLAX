@@ -11,8 +11,11 @@
 #include "../../parallax/state_message.h"
 #include "state_receiver.h"
 #include "persistence.h"
+#include "ms_queue.h"
+#include "network_agent.h"
 
-// ════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════
 //  HANDLERS DE MESSAGES
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -165,33 +168,44 @@ void* state_receiver_thread_run(void* arg) {
     // Démarre le thread de persistence disque
     flusher_start();
 
-    // Ouverture de la file de messages IPC
-    key_t key  = ftok("/tmp/parallax_queue", 42);
-    int   msqid = msgget(key, 0666 | IPC_CREAT);
-    if (msqid == -1) {
-        perror("[StateReceiver] msgget()");
+    // Ouverture de la file de messages IPC via le network_agent
+    char * mq_id_str = create_mq("STAT", 65536);
+
+    if (mq_id_str == NULL) {
+        perror("[StateReceiver] create_mq()");
+        return NULL;
+    }
+    
+    map_entry * entry = find_by_msg_type("STAT");
+    if (!entry) {
+        fprintf(stderr, "[StateReceiver] Queue STAT introuvable\n");
         return NULL;
     }
 
-    printf("[StateReceiver] Démarré (msqid=%d)\n", msqid);
+    printf("[StateReceiver] Démarré (queue type=%s, msqid=%d)\n", entry->msg_type, entry->queue_id);
 
     atomic_store(&receiver_running, 1);
-    MachineMetrics msg;
+    int msqid = entry->queue_id;
 
     while (atomic_load(&receiver_running)) {
-        ssize_t ret = msgrcv(msqid, &msg, sizeof(msg) - sizeof(long),
-                             0, IPC_NOWAIT);
+
+        queued_message qmsg;
+        ssize_t ret = msgrcv(msqid, &qmsg, sizeof(qmsg) - sizeof(long),
+                             1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
         if (ret == -1) {
             usleep(100000);   // 100ms — pas de message, on repoll
             continue;
         }
 
-        switch (msg.type) {
-            case MSG_HELLO:          register_node(&msg);    break;
-            case MSG_HEARTBEAT:      update_heartbeat(&msg); break;
-            case MSG_HEARTBEAT_INIT: init_heartbeat(&msg);   break;
+        // Le payload du network_agent est dans qmsg.data
+        MachineMetrics *msg = (MachineMetrics *)qmsg.data;
+
+        switch (msg->type) {
+            case MSG_HELLO:          register_node(msg);    break;
+            case MSG_HEARTBEAT:      update_heartbeat(msg); break;
+            case MSG_HEARTBEAT_INIT: init_heartbeat(msg);   break;
             default:
-                printf("[StateReceiver] ⚠ Type inconnu : %d\n", msg.type);
+                printf("[StateReceiver] ⚠ Type inconnu : %d\n", msg->type);
         }
     }
 
