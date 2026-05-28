@@ -124,6 +124,7 @@ void * socket_listener(void * args){
         memset(&item, 0, sizeof(item));
         item.mtype = NETWORK_AGENT_MTYPE;
         item.type = header.type;
+        item.recv_type = header.recv_type;
         item.size = header.size;
 
         if (item.size > 0) {
@@ -137,7 +138,8 @@ void * socket_listener(void * args){
         close(client_fd);
 
         char msg_type[64];
-        snprintf(msg_type, sizeof(msg_type), "%lu", (unsigned long)item.type);
+        memset(msg_type, 0, sizeof(msg_type));
+        memcpy(msg_type, &item.type, sizeof(item.type));
 
         map_entry *entry = get_or_create_mq(msg_type);
         if (entry == NULL) {
@@ -199,7 +201,9 @@ void * socket_sender(void * args){
             continue;
         }
 
+        message->mq_type = 1;
         message->type = item.type;
+        message->recv_type = item.recv_type;
         message->size = item.size;
         if (item.size > 0)
             memcpy(message->data, item.data, item.size);
@@ -221,7 +225,7 @@ void * socket_sender(void * args){
  */
 void network_start(){
     if (atomic_exchange(&agent_started, 1))
-        return;
+        return NULL;
 
     atomic_store(&agent_running, 1);
 
@@ -230,14 +234,14 @@ void network_start(){
     if (local_connection == NULL) {
         atomic_store(&agent_running, 0);
         atomic_store(&agent_started, 0);
-        return;
+        return NULL;
     }
 
     //create recieving message queue to store outgoing messages
     if (create_mq("outgoing", NETWORK_AGENT_MAX_DATA) == NULL) {
         atomic_store(&agent_running, 0);
         cleanup_agent();
-        return;
+        return NULL;
     }
     
     map_entry * outgoing_mq=find_by_msg_type("outgoing");
@@ -249,7 +253,7 @@ void network_start(){
     if (pthread_create(&listener_thread,NULL,socket_listener,(void *)local_connection) != 0) {
         atomic_store(&agent_running, 0);
         cleanup_agent();
-        return;
+        return NULL;
     }
 
     //start thread to listen for messages in outgoing mq and send them
@@ -260,7 +264,7 @@ void network_start(){
         local_connection->sockfd = -1;
         pthread_join(listener_thread,NULL);
         cleanup_agent();
-        return;
+        return NULL;
     }
 }
 
@@ -328,6 +332,7 @@ void send_msg(char * Ip, int port, message_t*  message ){
     strncpy(item.ip, Ip, sizeof(item.ip) - 1);
     item.port = port;
     item.type = message->type;
+    item.recv_type = message->recv_type;
     item.size = message->size;
 
     if (message->size > 0)

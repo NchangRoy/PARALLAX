@@ -11,8 +11,11 @@
 #include "../../parallax/state_message.h"
 #include "state_receiver.h"
 #include "persistence.h"
+#include "ms_queue.h"
+#include "network_agent.h"
 
-// ════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════
 //  HANDLERS DE MESSAGES
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -143,6 +146,64 @@ static void init_heartbeat(MachineMetrics* msg) {
     metrics_buf_push(uuid_copy, ts, &mcopy);
 }
 
+
+
+
+void * heartbeat_init_func(void * arg){
+        //parse entry
+        map_entry * heartbeat_entry=(map_entry * )arg;
+        queued_message qmsg;
+        while(1){
+            ssize_t ret = msgrcv(heartbeat_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
+                             1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
+        if (ret == -1) {
+            usleep(100000);   // 100ms — pas de message, on repoll
+            continue;
+        }
+
+        // Le payload du network_agent est dans qmsg.data
+        MachineMetrics *msg = (MachineMetrics *)qmsg.data;
+        init_heartbeat(msg);
+        printf("received a hearbeat\n");
+        }
+}
+
+void * heartbeat_func(void * arg){
+     map_entry * heartbeat_entry=(map_entry * )arg;
+        queued_message qmsg;
+        while(1){
+            ssize_t ret = msgrcv(heartbeat_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
+                             1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
+        if (ret == -1) {
+            usleep(100000);   // 100ms — pas de message, on repoll
+            continue;
+        }
+
+        // Le payload du network_agent est dans qmsg.data
+        MachineMetrics *msg = (MachineMetrics *)qmsg.data;
+        update_heartbeat(msg);
+        printf("received a hearbeat\n");
+        }
+}
+
+void * hello_func(void * arg){
+     map_entry * heartbeat_entry=(map_entry * )arg;
+        queued_message qmsg;
+        while(1){
+            ssize_t ret = msgrcv(heartbeat_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
+                             1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
+        if (ret == -1) {
+            usleep(100000);   // 100ms — pas de message, on repoll
+            continue;
+        }
+
+        // Le payload du network_agent est dans qmsg.data
+        MachineMetrics *msg = (MachineMetrics *)qmsg.data;
+        register_node(msg);
+        printf("received a hearbeat\n");
+        }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  BOUCLE DU THREAD RECEIVER
 // ════════════════════════════════════════════════════════════════════════════
@@ -165,36 +226,45 @@ void* state_receiver_thread_run(void* arg) {
     // Démarre le thread de persistence disque
     flusher_start();
 
-    // Ouverture de la file de messages IPC
-    key_t key  = ftok("/tmp/parallax_queue", 42);
-    int   msqid = msgget(key, 0666 | IPC_CREAT);
-    if (msqid == -1) {
-        perror("[StateReceiver] msgget()");
+    // Ouverture de la file de messages IPC via le network_agent
+    char * mq_heartbeat_init_str = create_mq("MSG_HEARTBEAT_INIT", sizeof(queued_message));
+    char * mq_heartbeat_str = create_mq("MSG_HEARTBEAT", sizeof(queued_message));
+    char * mq_hello_str = create_mq("MSG_HELLO", sizeof(queued_message));
+    
+
+
+
+    if (mq_heartbeat_init_str == NULL) {
+        perror("[StateReceiver] create_mq()");
         return NULL;
     }
+    
+    map_entry * hearbeat_init = find_by_msg_type(mq_heartbeat_init_str);
+    map_entry * heartbeat=find_by_msg_type(mq_heartbeat_str);
+    map_entry * hello=find_by_msg_type(mq_hello_str);
+    if (!hearbeat_init) {
+        fprintf(stderr, "[StateReceiver] Queue STAT introuvable\n");
+        return NULL;
+    }
+    pthread_t hearbeat_init_thread;
+    pthread_t heartbeat_thread;
+    pthread_t hello_thread;
+    pthread_create(&hearbeat_init_thread,NULL,heartbeat_init_func,(void * )hearbeat_init);
+    pthread_create(&heartbeat_thread,NULL,heartbeat_func,(void * )heartbeat);
+    pthread_create(&hello_thread,NULL,hello_func,(void * )hello);
 
-    printf("[StateReceiver] Démarré (msqid=%d)\n", msqid);
 
+    
+    
     atomic_store(&receiver_running, 1);
-    MachineMetrics msg;
 
     while (atomic_load(&receiver_running)) {
-        ssize_t ret = msgrcv(msqid, &msg, sizeof(msg) - sizeof(long),
-                             0, IPC_NOWAIT);
-        if (ret == -1) {
-            usleep(100000);   // 100ms — pas de message, on repoll
-            continue;
-        }
-
-        switch (msg.type) {
-            case MSG_HELLO:          register_node(&msg);    break;
-            case MSG_HEARTBEAT:      update_heartbeat(&msg); break;
-            case MSG_HEARTBEAT_INIT: init_heartbeat(&msg);   break;
-            default:
-                printf("[StateReceiver] ⚠ Type inconnu : %d\n", msg.type);
-        }
+        usleep(100000);
+        
     }
+    //kill threads here
 
+    
     printf("[StateReceiver] Arrêté proprement\n");
     return NULL;
 }

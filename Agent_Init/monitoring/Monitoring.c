@@ -64,10 +64,13 @@ void *monitoring_thread_run(void *arg){
             
             message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
             if (pkt) {
+                pkt->mq_type=1;
                 pkt->type = MSG_HEARTBEAT_INIT;
                 pkt->size = sizeof(MachineMetrics);
                 memcpy(pkt->data, &m, sizeof(MachineMetrics));
-                send_msg("127.0.0.1", 9001, pkt);
+
+                send_msg("192.168.50.1", 9000, pkt);
+                
                 free(pkt);
                 heartbeat_sent = 1;
                 msg_count++;
@@ -80,10 +83,11 @@ void *monitoring_thread_run(void *arg){
             
             message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
             if (pkt) {
+                pkt->mq_type=1;
                 pkt->type = MSG_HEARTBEAT;
                 pkt->size = sizeof(MachineMetrics);
                 memcpy(pkt->data, &m, sizeof(MachineMetrics));
-                send_msg("127.0.0.1", 9001, pkt);
+                send_msg("192.168.50.1", 9000, pkt);
                 free(pkt);
                 msg_count++;
                 printf("[MONITORING] MSG_HEARTBEAT sent (msg #%d)\n", msg_count);
