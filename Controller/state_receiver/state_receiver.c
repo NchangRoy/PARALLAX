@@ -409,71 +409,7 @@ void * hello_func(void * arg){
         if (ret == -1) {
             usleep(100000);   // 100ms — pas de message, on repoll
             continue;
-        }static void send_hello(void) {
-    // Get latest metrics to include in HELLO message
-    MachineMetrics msg = monitoring_get_latest();
-    
-    // Ensure UUID is set
-    strncpy(msg.uuid, agent.uuid, sizeof(msg.uuid) - 1);
-    msg.type = MSG_HELLO;
-    msg.timestamp = time(NULL);
-    
-    // Set IP and port (hardcoded for now, can be made dynamic later)
-    get_local_ip(&msg, "wlo1"); // Assuming eth0 is the primary interface
-    msg.port = 9000;  // Default worker listening port
-    
-    // DEBUG: Afficher les données avant envoi
-    debug_print_sent_metrics(&msg, "MSG_HELLO");
-    
-   
-
-    printf("Waiting for controller's IP reply on port 9001 via message queue...\n");
-    map_entry *mq = find_by_msg_type(HELLO_TYPE);
-    if (!mq) {
-        if (create_mq(HELLO_TYPE, NETWORK_AGENT_MAX_DATA) != NULL) {
-            mq = find_by_msg_type(HELLO_TYPE);
         }
-    }
-    
-    if (!mq) {
-        printf("[INIT] Failed to find or create HELLO_TYPE queue!\n");
-        return;
-    }
-
-    int response_received = 0;
-    queued_message item;
-    
-    while (!response_received) {
-        message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
-        if (pkt) {
-            strcpy(pkt->type, HELLO_TYPE);
-            pkt->size = sizeof(MachineMetrics);
-            memcpy(pkt->data, &msg, sizeof(MachineMetrics));
-            
-            send_broadcast(9001, pkt);
-            free(pkt);
-            printf("[INIT] HELLO sent: uuid=%s\n", agent.uuid);
-        }
-
-        // Wait up to 5 seconds for a reply
-        for (int i = 0; i < 50; i++) {
-            ssize_t received = msgrcv(mq->queue_id, &item, sizeof(item) - sizeof(long), NETWORK_AGENT_MTYPE, IPC_NOWAIT);
-            if (received > 0) {
-                if (strncmp(item.data, "IP:", 3) == 0) {
-                    printf("\n--- Controller IP Received ---\n");
-                    printf("Message Type: %s\n", item.type);
-                    printf("Controller IP: %s\n", item.data + 3);
-                    strncpy(controller_ip, item.data + 3, 15);
-                    controller_ip[15] = '\0';
-                    response_received = 1;
-                    break;
-                }
-            }
-            usleep(100000); // 100ms
-        }
-    }
-}
-
 
         // Ignore if this is a reply (starts with IP:) so we don't infinitely reply to a reply
         if (strncmp(qmsg.data, "IP:", 3) == 0) continue;
@@ -484,8 +420,7 @@ void * hello_func(void * arg){
         printf("received a HELLO message\n");
         
         // Reply with our IP on the same type
-        char my_ip[16] = {0};
-        get_local_ip_str(my_ip);
+        char my_ip[16] = "192.168.201.156";
         
         message_t *reply = malloc(sizeof(message_t) + 64);
         strcpy(reply->type, HELLO_TYPE);
