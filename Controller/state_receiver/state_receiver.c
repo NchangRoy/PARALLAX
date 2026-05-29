@@ -420,7 +420,7 @@ void * hello_func(void * arg){
         printf("received a HELLO message\n");
         
         // Reply with our IP on the same type
-        char my_ip[16] = "192.168.201.156";
+        char my_ip[16] = "192.168.201.217";
         
         message_t *reply = malloc(sizeof(message_t) + 64);
         strcpy(reply->type, HELLO_TYPE);
@@ -430,7 +430,7 @@ void * hello_func(void * arg){
         
         printf("Replying to HELLO with our IP: %s directly to agent at %s:%d\n", my_ip, msg->ip, msg->port);
         // Reply directly via reliable TCP unicast to the agent instead of a broadcast
-        send_msg(msg->ip, msg->port, NULL, reply);
+        send_broadcast( 9001, reply);
         free(reply);
     }
     return NULL;

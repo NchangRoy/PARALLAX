@@ -3,15 +3,15 @@
   "ip": "0.0.0.0",
   "port": 9000,
   "status": 0,
-  "last_heartbeat": 1780057725,
+  "last_heartbeat": 1780064690,
   "hardware": {
-    "cpu_cores": 0,
-    "cpu_threads_per_core": 0,
-    "cpu_freq_mhz": 0.0,
-    "cpu_model": "",
-    "ram_total_mb": 0,
-    "disk_total_gb": 0,
-    "disk_mount": "",
-    "network_iface": ""
+    "cpu_cores": 4,
+    "cpu_threads_per_core": 8,
+    "cpu_freq_mhz": 906.0,
+    "cpu_model": "Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz",
+    "ram_total_mb": 15881,
+    "disk_total_gb": 599296,
+    "disk_mount": "/",
+    "network_iface": "eno1"
   }
 }
