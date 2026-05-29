@@ -4,7 +4,7 @@
 #include "socket.h"
 
 #define NETWORK_AGENT_MTYPE 1L
-#define NETWORK_AGENT_MAX_DATA 65536
+#define NETWORK_AGENT_MAX_DATA 8000
 typedef struct {
     long mtype;
     char type[64];

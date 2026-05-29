@@ -184,6 +184,7 @@ MachineMetrics monitoring_get_latest(void){
     pthread_mutex_lock(&metrics_mutex);
     strcpy(latest_metrics.ip, controller_ip);
     m = latest_metrics; // Copy the latest metrics
+
     pthread_mutex_unlock(&metrics_mutex);
     return m;
 }

@@ -19,7 +19,7 @@
   "hardware": {
     "cpu_cores": 2,
     "cpu_threads_per_core": 4,
-    "cpu_freq_mhz": 1995.2,
+    "cpu_freq_mhz": 798.1,
     "cpu_model": "Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz",
     "ram_total_mb": 9826,
     "disk_total_gb": 467850,
