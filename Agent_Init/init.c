@@ -204,22 +204,7 @@ static void send_hello(void) {
     // DEBUG: Afficher les données avant envoi
     debug_print_sent_metrics(&msg, "MSG_HELLO");
     
-    message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
-    if (pkt) {
-
-        
-       
-        strcpy(pkt->type,HELLO_TYPE);
-        pkt->size = sizeof(MachineMetrics);
-        memcpy(pkt->data, &msg, sizeof(MachineMetrics));
-
-
-        //send broadcast message in network
-        send_broadcast(9001, pkt);//port +1
-
-        free(pkt);
-        printf("[INIT] HELLO sent: uuid=%s\n", agent.uuid);
-    }
+   
 
     printf("Waiting for controller's IP reply on port 9001 via message queue...\n");
     map_entry *mq = find_by_msg_type(HELLO_TYPE);
@@ -236,17 +221,57 @@ static void send_hello(void) {
 
     queued_message item;
     while(1) {
-        ssize_t received = msgrcv(mq->queue_id, &item, sizeof(item) - sizeof(long), NETWORK_AGENT_MTYPE, 0);
-        if (received > 0) {
-            // Ignore our own HELLO broadcast
-            if (strncmp(item.data, "IP:", 3) != 0) continue;
-            
+
+    message_t *pkt =
+        (message_t *)malloc(sizeof(message_t)
+        + sizeof(MachineMetrics));
+
+    if (pkt) {
+
+        strcpy(pkt->type, HELLO_TYPE);
+
+        pkt->size = sizeof(MachineMetrics);
+
+        memcpy(pkt->data,
+               &msg,
+               sizeof(MachineMetrics));
+
+        // send broadcast message in network
+        send_broadcast(9001, pkt);
+
+        free(pkt);
+
+        printf("[INIT] HELLO sent: uuid=%s\n",
+               agent.uuid);
+    }
+
+    ssize_t received =
+        msgrcv(
+            mq->queue_id,
+            &item,
+            sizeof(item) - sizeof(long),
+            NETWORK_AGENT_MTYPE,
+            IPC_NOWAIT
+        );
+
+    if (received > 0) {
+
+        // Ignore non-IP messages
+        if (strncmp(item.data, "IP:", 3) == 0) {
+
             printf("\n--- Controller IP Received ---\n");
-            printf("Message Type: %s\n", item.type);
-            printf("Controller IP: %s\n", item.data + 3);
-            break;
+
+            printf("Message Type: %s\n",
+                   item.type);
+
+            printf("Controller IP: %s\n",
+                   item.data + 3);
         }
     }
+
+    // Wait 5 seconds before next HELLO
+    sleep(5);
+}
 }
 
 static AgentRole read_role(void) {
@@ -367,8 +392,7 @@ void initialize_agent(void){
     agent.role = read_role();
     printf("[INIT] Initial role: %d\n", agent.role);
 
-    // 3. Start threads based on role
-    start_threads();
+
     
     // 4. Send HELLO after network thread is started (queue exists)
     // Give network thread time tconnection o initialize
@@ -376,6 +400,9 @@ void initialize_agent(void){
     if (agent.role != ROLE_CONTROLLER) {
         send_hello();
     }
+
+    // 3. Start threads based on role
+    start_threads();
 
     // 5. Start config watcher in main thread (blocking)
     watch_config();
