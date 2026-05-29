@@ -118,9 +118,11 @@ void *monitoring_thread_run(void *arg){
         // Fill UUID from agent
         strncpy(m.uuid, get_agent_uuid(), sizeof(m.uuid) - 1);
         
-        // Fill IP and port (hardcoded for now, can be made dynamic later)
-        get_local_ip(&m, m.network_iface);
-        m.port = 9000;  // Default worker listening port
+        // Fill IP and port dynamically
+        load_network_interface(m.network_iface, sizeof(m.network_iface));
+        get_local_ip(m.ip, sizeof(m.ip), m.network_iface);
+        m.port = 9000; 
+        // Default worker listening port
 
         // Update global state
         pthread_mutex_lock(&metrics_mutex);

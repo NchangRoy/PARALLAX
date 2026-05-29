@@ -55,11 +55,12 @@ static void generate_uuid(char *uuid){
 
 }
 
-static void load_network_interface(MachineMetrics *m) {
+void load_network_interface(char *iface, size_t max_len) {
     FILE *f = fopen(CONF_FILE, "r");
     if (!f) {
         perror("[CONFIG] fopen");
-        strncpy(m->network_iface, "eth0", sizeof(m->network_iface) - 1);
+        strncpy(iface, "eth0", max_len - 1);
+        iface[max_len - 1] = '\0';
         return;
     }
 
@@ -67,29 +68,30 @@ static void load_network_interface(MachineMetrics *m) {
 
     while (fgets(line, sizeof(line), f)) {
         if (strncmp(line, "interface=", 10) == 0) {
-            strncpy(m->network_iface, line + 10, sizeof(m->network_iface) - 1);
-            m->network_iface[sizeof(m->network_iface) - 1] = '\0';
+            strncpy(iface, line + 10, max_len - 1);
+            iface[max_len - 1] = '\0';
 
             // remove newline
-            m->network_iface[strcspn(m->network_iface, "\n")] = '\0';
+            iface[strcspn(iface, "\n")] = '\0';
 
             fclose(f);
 
             // 🔒 validation
-            for (int i = 0; m->network_iface[i]; i++) {
-                char c = m->network_iface[i];
+            for (int i = 0; iface[i]; i++) {
+                char c = iface[i];
                 if (!(c >= 'a' && c <= 'z') &&
                     !(c >= 'A' && c <= 'Z') &&
                     !(c >= '0' && c <= '9') &&
                     c != '_' && c != '-') {
 
                     printf("[CONFIG] Invalid interface, fallback to eth0\n");
-                    strncpy(m->network_iface, "eth0", sizeof(m->network_iface) - 1);
+                    strncpy(iface, "eth0", max_len - 1);
+                    iface[max_len - 1] = '\0';
                     break;
                 }
             }
 
-            printf("[CONFIG] Interface loaded: %s\n", m->network_iface);
+            printf("[CONFIG] Interface loaded: %s\n", iface);
             return;
         }
     }
@@ -98,16 +100,18 @@ static void load_network_interface(MachineMetrics *m) {
 
     // fallback if not found
     printf("[CONFIG] interface not found, fallback to eth0\n");
-    strncpy(m->network_iface, "eth0", sizeof(m->network_iface) - 1);
+    strncpy(iface, "eth0", max_len - 1);
+    iface[max_len - 1] = '\0';
 }
 
-void get_local_ip(MachineMetrics *m,char * iface_name) {
+void get_local_ip(char *ip, size_t max_len, const char *iface_name) {
     char command[128];
     snprintf(command, sizeof(command), "ip addr show %s", iface_name);
 
     FILE *fp = popen(command, "r");
     if (!fp) {
-        strncpy(m->ip, "0.0.0.0", sizeof(m->ip) - 1);
+        strncpy(ip, "0.0.0.0", max_len - 1);
+        ip[max_len - 1] = '\0';
         return;
     }
 
@@ -123,9 +127,9 @@ void get_local_ip(MachineMetrics *m,char * iface_name) {
             char *slash = strchr(inet_pos, '/');
             if (slash) {
                 size_t len = slash - inet_pos;
-                if (len < sizeof(m->ip)) {
-                    strncpy(m->ip, inet_pos, len);
-                    m->ip[len] = '\0';
+                if (len < max_len) {
+                    strncpy(ip, inet_pos, len);
+                    ip[len] = '\0';
                 }
                 break;
             }
@@ -135,8 +139,9 @@ void get_local_ip(MachineMetrics *m,char * iface_name) {
     pclose(fp);
 
     // fallback si rien trouvé
-    if (strlen(m->ip) == 0) {
-        strncpy(m->ip, "0.0.0.0", sizeof(m->ip) - 1);
+    if (strlen(ip) == 0) {
+        strncpy(ip, "0.0.0.0", max_len - 1);
+        ip[max_len - 1] = '\0';
     }
 }
 
@@ -247,8 +252,8 @@ static void send_hello(void) {
     msg.timestamp = time(NULL);
     
     // Set IP and port dynamically
-    load_network_interface(&msg);
-    get_local_ip(&msg, msg.network_iface);
+    load_network_interface(msg.network_iface, sizeof(msg.network_iface));
+    get_local_ip(msg.ip, sizeof(msg.ip), msg.network_iface);
     msg.port = 9000;  // Default worker listening port
     
     // DEBUG: Afficher les données avant envoi
