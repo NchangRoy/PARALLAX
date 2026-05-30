@@ -11,7 +11,7 @@ extern void execute_fxn(void *data, size_t total_size, char *fxn_name,
                         int node_count);
 
 // Global for master_exec.c to connect to Controller
-char controller_ip[16] = "127.0.0.1";
+char controller_ip[16] = "192.168.100.32";
 
 int main() {
   printf("[TestExec] Starting network agent on port 9005...\n");

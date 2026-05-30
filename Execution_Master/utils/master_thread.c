@@ -37,7 +37,7 @@ void * prog_listener_func(void * args){
     char run_cmd[512];
 
     //parse code
-    
+
 
 
 
@@ -90,6 +90,14 @@ void * master_thread_start(void *args){
     return NULL;
 }
 
+
+void master_thread_stop(){
+
+}
+
+
+/*
+
 int main(){
     printf("[Master] Starting network agent on port 9000...\n");
     static network_agent_config cfg = {9000, "master_out"};
@@ -102,3 +110,4 @@ int main(){
     
     return 0;
 }
+*/
