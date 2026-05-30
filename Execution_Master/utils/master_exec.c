@@ -7,6 +7,7 @@
 #include"state_message.h"
 #include"orchestrator.h"
 #include"parallax_team.h"
+#include"init.h"
 extern char controller_ip[16];
 
 void *sum_reduce(void *a, void *b) {
@@ -21,14 +22,21 @@ void *sum_reduce(void *a, void *b) {
 void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count){
     //first get worker xtics from controller
     // Allocate message with room for data payload
-    message_t *message = malloc(sizeof(message_t) + 64);
-    memset(message, 0, sizeof(message_t) + 64);
+    message_t *message = malloc(sizeof(message_t));
+    memset(message, 0, sizeof(message_t));
     message->mq_type = 1;
     strcpy(message->type, "NODES");
-    strcpy(message->recv_type, "NODES"); // Tell the controller what type to label the response
-    // Tell controller to reply to our network agent on port 9005
-    snprintf(message->data, 64, "127.0.0.1:9005");
-    message->size = strlen(message->data) + 1;
+    strcpy(message->recv_type, "NODES");
+    
+    // Resolve our actual LAN IP so the controller can reply across the network
+    char iface[64] = {0};
+    load_network_interface(iface, sizeof(iface));
+    get_local_ip(message->sender_ip, sizeof(message->sender_ip), iface);
+    message->sender_port = 9000;
+    message->size = 0;
+    
+    printf("[MasterExec] Sending NODES query with reply address %s:%d\n", 
+           message->sender_ip, message->sender_port);
     
     send_msg(controller_ip, 9000, "master_out", message);
     free(message);

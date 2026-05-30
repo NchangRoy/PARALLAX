@@ -17,4 +17,9 @@ typedef struct {
 } program_message_t;
 
 
+void * master_thread_start(void *args);
+
+void master_thread_stop();
+
+
 #endif
