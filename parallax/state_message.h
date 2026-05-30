@@ -10,6 +10,7 @@
 #define HELLO_TYPE "HELLO"
 #define HB_TYPE "HB"
 #define HB_INIT_TYPE "HB_INIT"
+#define BE_TYPE "BACKEND"
 
 
 #include <stdint.h>
@@ -20,6 +21,7 @@ typedef struct{
     char ip[16];
     int port;
     int type;
+    int role; // ROLE_UNKNOWN=0, ROLE_WORKER=1, ROLE_CONTROLLER=2, ROLE_MASTER=3
 
     // CPU
     float cpu_usage;

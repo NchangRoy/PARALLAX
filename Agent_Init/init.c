@@ -20,6 +20,8 @@
 // Global controller IP exposed to other files (e.g. Monitoring.c)
 char controller_ip[16] = "127.0.0.1";
 
+int agent_role;  // Global variable to hold the agent's role
+
 // ===== PRIVATE STATE =====
 static AgentState agent;
 static volatile int agent_running = 1;
@@ -320,12 +322,24 @@ static AgentRole read_role(void) {
     fscanf(f, "role=%31s", role_str);
     fclose(f);
 
-    if (strcmp(role_str, "Worker") == 0) return ROLE_WORKER;
-    if (strcmp(role_str, "Controller") == 0) return ROLE_CONTROLLER;
-    if (strcmp(role_str, "Master") == 0) return ROLE_MASTER;
-    
+    if (strcmp(role_str, "Worker") == 0){ 
+        agent_role = ROLE_WORKER;
+        return ROLE_WORKER;
+    }
+    if (strcmp(role_str, "Controller") == 0) {
+        agent_role = ROLE_CONTROLLER;
+        return ROLE_CONTROLLER;
+    }
+    if (strcmp(role_str, "Master") == 0) {
+        agent_role = ROLE_MASTER;
+        return ROLE_MASTER;
+    }
+
     printf("[INIT] Unknown role '%s', defaulting to ROLE_UNKNOWN\n", role_str);
-    return ROLE_UNKNOWN;
+    {
+        agent_role = ROLE_UNKNOWN;
+        return ROLE_UNKNOWN;
+    }
 }
 
 static void start_threads(void){

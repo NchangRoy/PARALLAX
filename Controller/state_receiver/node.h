@@ -53,8 +53,8 @@ typedef struct {
 typedef struct NodeInfo {
     char         uuid[64];
     char         ip[16];
-    int          port;
-
+    int          port;   
+    int          role;  // Node's role: ROLE_UNKNOWN=0, ROLE_WORKER=1, ROLE_CONTROLLER=2, ROLE_MASTER=3
     NodeStatus   status;
     time_t       last_heartbeat;
 

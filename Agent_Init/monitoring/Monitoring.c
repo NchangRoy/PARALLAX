@@ -43,6 +43,7 @@ static void debug_print_sent_metrics(MachineMetrics* m, const char* msg_type) {
     printf("    • IP:        %s:%d\n", m->ip, m->port);
     printf("    • Timestamp: %s (%ld)\n", timestamp_str, m->timestamp);
     printf("    • Type:      %d\n", m->type);
+    printf("    • Role:      %d\n", m->role);
     
     printf("  ▼ CPU\n");
     printf("    • Usage:           %.2f%%\n", m->cpu_usage);
@@ -126,6 +127,10 @@ void *monitoring_thread_run(void *arg){
         }
         m.port = 9000; 
         // Default worker listening port
+        
+        // Fill role from global agent role
+        extern int agent_role; // Declared in init.c
+        m.role = agent_role;
 
         // Update global state
         pthread_mutex_lock(&metrics_mutex);
