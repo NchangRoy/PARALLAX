@@ -21,7 +21,7 @@ bin/test_prog_client: $(TEST_SRCS) | bin
 	gcc $(TEST_SRCS) -o bin/test_prog_client -Iutils -I../Agent_Init/network -pthread
 
 bin/test_master_exec: $(TEST_EXEC_SRCS) | bin
-	gcc $(TEST_EXEC_SRCS) -o bin/test_master_exec -Iutils -I../Agent_Init/network -I../Agent_Init -I../parallax -pthread
+	gcc $(TEST_EXEC_SRCS) -o bin/test_master_exec -Iutils -I../Agent_Init/network -I../parallax -pthread
 
 bin/test_mock_worker: $(TEST_WORKER_SRCS) | bin
 	gcc $(TEST_WORKER_SRCS) -o bin/test_mock_worker -Iutils -I../Agent_Init/network -I../parallax -pthread

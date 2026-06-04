@@ -1,7 +1,9 @@
 #include "network_agent.h"
 #include "ms_queue.h"
 #include "socket.h"
+#include <arpa/inet.h>
 #include <errno.h>
+#include <netinet/in.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stddef.h>
@@ -10,9 +12,7 @@
 #include <string.h>
 #include <sys/msg.h>
 #include <sys/socket.h>
-#include <netinet/in.h>     
 #include <unistd.h>
-#include <arpa/inet.h>
 #define NETWORK_AGENT_MTYPE 1L
 
 static pthread_t listener_thread;
@@ -86,79 +86,87 @@ static void cleanup_agent() {
 
 /*
  * Thread d'ecoute UDP (pour le controller).
- * Il ecoute sur le port donne et place les paquets dans la queue correspondante.
+ * Il ecoute sur le port donne et place les paquets dans la queue
+ * correspondante.
  */
 void *udp_socket_listener(void *args) {
-    int port = (int)(intptr_t)args;
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        perror("udp socket");
-        return NULL;
-    }
+  int port = (int)(intptr_t)args;
+  int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sockfd < 0) {
+    perror("udp socket");
+    return NULL;
+  }
 
-    int opt = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+  int opt = 1;
+  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(port);
+  addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        perror("udp bind");
-        close(sockfd);
-        return NULL;
-    }
-
-    printf("UDP listening on port %d\n", port);
-
-    char *buffer = malloc(sizeof(message_t) + NETWORK_AGENT_MAX_DATA);
-    if (!buffer) {
-        close(sockfd);
-        return NULL;
-    }
-
-    while (atomic_load(&agent_running)) {
-        struct sockaddr_in client_addr;
-        socklen_t client_len = sizeof(client_addr);
-
-        ssize_t received = recvfrom(sockfd, buffer, sizeof(message_t) + NETWORK_AGENT_MAX_DATA, 0, (struct sockaddr *)&client_addr, &client_len);
-        if (received < 0) {
-            if (!atomic_load(&agent_running)) break;
-            perror("recvfrom udp");
-            continue;
-        }
-
-        if (received < (ssize_t)sizeof(message_t)) continue;
-
-        message_t *header = (message_t *)buffer;
-
-        if (header->size > NETWORK_AGENT_MAX_DATA) continue;
-
-        queued_message item;
-        memset(&item, 0, sizeof(item));
-        item.mtype = NETWORK_AGENT_MTYPE;
-        strcpy(item.type, header->type);
-        strcpy(item.recv_type, header->recv_type);
-        item.size = header->size;
-
-        if (item.size > 0 && received >= (ssize_t)(sizeof(message_t) + item.size)) {
-            memcpy(item.data, header->data, item.size);
-        }
-
-        map_entry *entry = get_or_create_mq(item.type);
-        if (entry == NULL) continue;
-
-        size_t payload_size = offsetof(queued_message, data) - sizeof(long) + item.size;
-        if (msgsnd(entry->queue_id, &item, payload_size, 0) < 0) {
-            perror("msgsnd udp incoming");
-        }
-    }
-    
-    free(buffer);
+  if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    perror("udp bind");
     close(sockfd);
     return NULL;
+  }
+
+  printf("UDP listening on port %d\n", port);
+
+  char *buffer = malloc(sizeof(message_t) + NETWORK_AGENT_MAX_DATA);
+  if (!buffer) {
+    close(sockfd);
+    return NULL;
+  }
+
+  while (atomic_load(&agent_running)) {
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    ssize_t received =
+        recvfrom(sockfd, buffer, sizeof(message_t) + NETWORK_AGENT_MAX_DATA, 0,
+                 (struct sockaddr *)&client_addr, &client_len);
+    if (received < 0) {
+      if (!atomic_load(&agent_running))
+        break;
+      perror("recvfrom udp");
+      continue;
+    }
+
+    if (received < (ssize_t)sizeof(message_t))
+      continue;
+
+    message_t *header = (message_t *)buffer;
+
+    if (header->size > NETWORK_AGENT_MAX_DATA)
+      continue;
+
+    queued_message item;
+    memset(&item, 0, sizeof(item));
+    item.mtype = NETWORK_AGENT_MTYPE;
+    strcpy(item.type, header->type);
+    strcpy(item.recv_type, header->recv_type);
+    item.size = header->size;
+
+    if (item.size > 0 && received >= (ssize_t)(sizeof(message_t) + item.size)) {
+      memcpy(item.data, header->data, item.size);
+    }
+
+    map_entry *entry = get_or_create_mq(item.type);
+    if (entry == NULL)
+      continue;
+
+    size_t payload_size =
+        offsetof(queued_message, data) - sizeof(long) + item.size;
+    if (msgsnd(entry->queue_id, &item, payload_size, 0) < 0) {
+      perror("msgsnd udp incoming");
+    }
+  }
+
+  free(buffer);
+  close(sockfd);
+  return NULL;
 }
 
 /*
@@ -169,8 +177,7 @@ void *udp_socket_listener(void *args) {
 void *socket_listener(void *args) {
   connection *local_conn = (connection *)args;
 
-
-   printf("\n\n\n starting reciever thread \n\n");
+  printf("\n\n\n starting reciever thread \n\n");
   /*
       1. listen for new message on the socket
       2. when it receives a new message , it deserialize it into message_t
@@ -181,41 +188,29 @@ void *socket_listener(void *args) {
   printf("received something 1\n");
   while (atomic_load(&agent_running)) {
 
-     printf("received something 2\n");
-     printf("waiting for connection...\n");
+    printf("received something 2\n");
+    printf("waiting for connection...\n");
 
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    int client_fd = accept(
-        local_conn->sockfd,
-        (struct sockaddr *)&client_addr,
-        &client_len
-    );
+    int client_fd = accept(local_conn->sockfd, (struct sockaddr *)&client_addr,
+                           &client_len);
 
     if (client_fd < 0) {
-        if (!atomic_load(&agent_running))
-            break;
+      if (!atomic_load(&agent_running))
+        break;
 
-        perror("accept");
-        continue;
+      perror("accept");
+      continue;
     }
 
     char client_ip[INET_ADDRSTRLEN];
 
-    inet_ntop(
-        AF_INET,
-        &client_addr.sin_addr,
-        client_ip,
-        sizeof(client_ip)
-    );
+    inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
 
-    printf(
-        "Client connected from %s:%d (fd=%d)\n",
-        client_ip,
-        ntohs(client_addr.sin_port),
-        client_fd
-    );
+    printf("Client connected from %s:%d (fd=%d)\n", client_ip,
+           ntohs(client_addr.sin_port), client_fd);
 
     if (client_fd < 0) {
       if (!atomic_load(&agent_running))
@@ -225,8 +220,6 @@ void *socket_listener(void *args) {
       perror("accept");
       continue;
     }
-
-   
 
     message_t header;
     ssize_t header_read = read_exact(client_fd, &header, sizeof(header));
@@ -245,9 +238,9 @@ void *socket_listener(void *args) {
     queued_message item;
     memset(&item, 0, sizeof(item));
     item.mtype = NETWORK_AGENT_MTYPE;
-  
-    strcpy(item.type,header.type);
-    strcpy(item.recv_type,header.recv_type);
+
+    strcpy(item.type, header.type);
+    strcpy(item.recv_type, header.recv_type);
     strcpy(item.sender_ip, header.sender_ip);
     item.sender_port = header.sender_port;
     item.size = header.size;
@@ -265,7 +258,6 @@ void *socket_listener(void *args) {
     char msg_type[64];
 
     printf("received message with type %s\n", item.type);
-   
 
     map_entry *entry = get_or_create_mq(item.type);
     if (entry == NULL) {
@@ -290,7 +282,6 @@ void *socket_listener(void *args) {
  */
 void *socket_sender(void *args) {
 
- 
   map_entry *outgoing_mq = (map_entry *)args;
   /*
   this is continously checking for message in the message queue,
@@ -330,8 +321,7 @@ void *socket_sender(void *args) {
       continue;
     }
 
-   
-    strcpy(message->type,item.type);
+    strcpy(message->type, item.type);
     strcpy(message->recv_type, item.recv_type);
     strcpy(message->sender_ip, item.sender_ip);
     message->sender_port = item.sender_port;
@@ -358,11 +348,11 @@ void *network_thread_run(void *args) {
   int port = 9000;
   char outgoing_q[64] = "outgoing";
   if (args != NULL) {
-      network_agent_config *config = (network_agent_config *)args;
-      port = config->port;
-      if (config->queue_name[0] != '\0') {
-          strcpy(outgoing_q, config->queue_name);
-      }
+    network_agent_config *config = (network_agent_config *)args;
+    port = config->port;
+    if (config->queue_name[0] != '\0') {
+      strcpy(outgoing_q, config->queue_name);
+    }
   }
 
   agent_port = port;
@@ -375,7 +365,6 @@ void *network_thread_run(void *args) {
   // create listening socket for the local machine
   local_connection = create_listener("0.0.0.0", port, 1);
 
-  
   if (local_connection == NULL) {
     atomic_store(&agent_running, 0);
     atomic_store(&agent_started, 0);
@@ -412,8 +401,9 @@ void *network_thread_run(void *args) {
     return NULL;
   }
 
-  if (pthread_create(&udp_listener_thread, NULL, udp_socket_listener, (void *)(intptr_t)(port+1)) != 0) {
-      perror("Failed to create UDP listener thread");
+  if (pthread_create(&udp_listener_thread, NULL, udp_socket_listener,
+                     (void *)(intptr_t)(port + 1)) != 0) {
+    perror("Failed to create UDP listener thread");
   }
 
   return NULL;
@@ -434,8 +424,8 @@ void network_stop() {
     connection *wake_conn =
         create_connection(local_connection->ip, local_connection->port);
     if (wake_conn != NULL) {
-        close(wake_conn->sockfd);
-        free(wake_conn);
+      close(wake_conn->sockfd);
+      free(wake_conn);
     }
 
     shutdown(local_connection->sockfd, SHUT_RDWR);
@@ -447,13 +437,14 @@ void network_stop() {
   // Send dummy packet to UDP to wake up recvfrom
   int dummy_sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (dummy_sock >= 0) {
-      struct sockaddr_in dummy_addr;
-      memset(&dummy_addr, 0, sizeof(dummy_addr));
-      dummy_addr.sin_family = AF_INET;
-      dummy_addr.sin_port = htons(agent_port + 1);
-      dummy_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-      sendto(dummy_sock, "stop", 4, 0, (struct sockaddr *)&dummy_addr, sizeof(dummy_addr));
-      close(dummy_sock);
+    struct sockaddr_in dummy_addr;
+    memset(&dummy_addr, 0, sizeof(dummy_addr));
+    dummy_addr.sin_family = AF_INET;
+    dummy_addr.sin_port = htons(agent_port + 1);
+    dummy_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    sendto(dummy_sock, "stop", 4, 0, (struct sockaddr *)&dummy_addr,
+           sizeof(dummy_addr));
+    close(dummy_sock);
   }
 
   pthread_join(listener_thread, NULL);
@@ -481,8 +472,9 @@ void send_msg(char *Ip, int port, char *queue_name, message_t *message) {
     return;
   }
 
-  const char *q_name = (queue_name != NULL && queue_name[0] != '\0') ? queue_name : "outgoing";
-  map_entry *outgoing_mq = get_or_create_mq((char*)q_name);
+  const char *q_name =
+      (queue_name != NULL && queue_name[0] != '\0') ? queue_name : "outgoing";
+  map_entry *outgoing_mq = get_or_create_mq((char *)q_name);
   if (outgoing_mq == NULL) {
     fprintf(stderr, "network_agent: outgoing mq is unavailable\n");
     return;
@@ -494,25 +486,27 @@ void send_msg(char *Ip, int port, char *queue_name, message_t *message) {
   strncpy(out.ip, Ip, sizeof(out.ip) - 1);
   out.ip[sizeof(out.ip) - 1] = '\0';
   out.port = port;
-  
+
   strcpy(out.type, message->type);
   strncpy(out.recv_type, message->recv_type, sizeof(out.recv_type) - 1);
   out.recv_type[sizeof(out.recv_type) - 1] = '\0';
-  
+
   if (strlen(message->sender_ip) == 0) {
-      strncpy(out.sender_ip, "127.0.0.1", sizeof(out.sender_ip) - 1);
+    strncpy(out.sender_ip, "127.0.0.1", sizeof(out.sender_ip) - 1);
   } else {
-      strncpy(out.sender_ip, message->sender_ip, sizeof(out.sender_ip) - 1);
+    strncpy(out.sender_ip, message->sender_ip, sizeof(out.sender_ip) - 1);
   }
   out.sender_ip[sizeof(out.sender_ip) - 1] = '\0';
-  
-  out.sender_port = (message->sender_port == 0) ? agent_port : message->sender_port;
+
+  out.sender_port =
+      (message->sender_port == 0) ? agent_port : message->sender_port;
   out.size = message->size;
 
   if (message->size > 0)
     memcpy(out.data, message->data, message->size);
 
-  size_t payload_size = offsetof(outgoing_message, data) - sizeof(long) + out.size;
+  size_t payload_size =
+      offsetof(outgoing_message, data) - sizeof(long) + out.size;
 
   if (msgsnd(outgoing_mq->queue_id, &out, payload_size, 0) < 0)
     perror("msgsnd outgoing");
@@ -522,5 +516,5 @@ void send_msg(char *Ip, int port, char *queue_name, message_t *message) {
  * Wrapper to send a broadcast message
  */
 void send_broadcast(int port, message_t *message) {
-    send_broadcast_message(port, message);
+  send_broadcast_message(port, message);
 }
