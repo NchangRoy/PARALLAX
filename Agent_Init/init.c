@@ -446,7 +446,7 @@ void initialize_agent(void) {
 
   // 3. Start Network thread first
   if (!agent.threads.network_active) {
-    static network_agent_config agent_net_cfg = {9001, "outgoing"};
+    static network_agent_config agent_net_cfg = {9000, "outgoing"};
     pthread_create(&agent.threads.network, NULL, network_thread_run,
                    &agent_net_cfg);
     agent.threads.network_active = 1;
@@ -456,9 +456,9 @@ void initialize_agent(void) {
   // 4. Send HELLO after network thread is started (queue exists)
   // Give network thread time to initialize
   sleep(1);
-  // if (agent.role != ROLE_CONTROLLER) {
-  //     send_hello();
-  // }
+if (agent.role != ROLE_CONTROLLER) {
+      send_hello();
+  }
 
   // 3. Start threads based on role
   start_threads();
