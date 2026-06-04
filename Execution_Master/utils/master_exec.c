@@ -10,7 +10,7 @@
 #include<unistd.h>
 extern char controller_ip[16];
 
-#define CONF_FILE "./parallax/parallax.conf"
+#define CONF_FILE "../parallax/parallax.conf"
 
 static void load_network_interface(char *iface, size_t max_len) {
   FILE *f = fopen(CONF_FILE, "r");
@@ -114,28 +114,29 @@ void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count
     memset(message, 0, sizeof(message_t));
     message->mq_type = 1;
     strcpy(message->type, "NODES");
-    strcpy(message->recv_type, "NODES");
+    strcpy(message->recv_type, "NODES_TEST");
     
     // Resolve our actual LAN IP so the controller can reply across the network
     char iface[64] = {0};
     load_network_interface(iface, sizeof(iface));
     get_local_ip(message->sender_ip, sizeof(message->sender_ip), iface);
-    message->sender_port = 9000;
+    message->sender_port = 9005;  // test agent listens on 9005 — controller replies here
     message->size = 0;
     
     printf("[MasterExec] Sending NODES query with reply address %s:%d\n", 
            message->sender_ip, message->sender_port);
     
     send_msg(controller_ip, 9000, "master_out", message);
+    printf("[MasterExec] NODES query sent to %s:9000\n", controller_ip);
     free(message);
+
 
     //read nodes data that was sent to the NODES mq
 
-    map_entry * node_mq=find_by_msg_type("NODES");
+    map_entry * node_mq=find_by_msg_type("NODES_TEST");
     queued_message received_msg;
 
-    // Clear stale messages in the queue from previous runs
-    while (msgrcv(node_mq->queue_id, &received_msg, sizeof(queued_message) - sizeof(long), 1L, IPC_NOWAIT) >= 0);
+    
 
     while(1){
 
@@ -163,7 +164,11 @@ void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count
         printf("[MasterExec] Error: 0 nodes connected to Controller! Aborting task.\n");
         return;
     }
-
+    printf("[DATA] received %d nodes\n",actual_node_count);
+    for (int i = 0; i < actual_node_count; i++) {
+        printf("Node %d: %s\n", i, metrics[i].uuid);
+    }
+  
     // Use the actual number of nodes instead of the hardcoded request
     node_count = (actual_node_count < node_count) ? actual_node_count : node_count;
 
@@ -231,5 +236,7 @@ void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count
     if (final_result) free(final_result);
 
     team_destroy(t);
+   
+
 }
 
