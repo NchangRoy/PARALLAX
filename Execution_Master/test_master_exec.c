@@ -11,7 +11,7 @@ extern void execute_fxn(void *data, size_t total_size, char *fxn_name,
                         int node_count);
 
 // Global for master_exec.c to connect to Controller
-char controller_ip[16] = "192.168.100.32";
+char controller_ip[16] = "127.0.0.1";
 
 int main() {
   printf("[TestExec] Starting network agent on port 9005...\n");
@@ -21,19 +21,17 @@ int main() {
   usleep(500000); // give it time to start
 
   // Create the message queue for receiving NODES responses from controller
-  create_mq("NODES", 0);
-
+  create_mq("NODES_TEST", 0);
+  map_entry * node_mq=find_by_msg_type("NODES_TEST");    
+  printf("NODES mq created with id %d\n",node_mq->queue_id);
   // Create sample dataset (array of integers)
   int payload[100];
   for (int i = 0; i < 100; i++) {
       payload[i] = i + 1; // Sum should be 5050
   }
 
-  int expected_node_count = 1; // Testing 1 node
+  int expected_node_count = 2; // Testing 1 node
 
-  printf("\n[TestExec] Calling execute_fxn to request %d node(s) and "
-         "distribute task...\n",
-         expected_node_count);
   printf("[TestExec] ⏳ WAITING for Controller at %s:9000 to respond to NODES "
          "query...\n",
          controller_ip);
