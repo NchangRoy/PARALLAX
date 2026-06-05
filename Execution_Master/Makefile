@@ -9,7 +9,7 @@ test_worker: bin/test_mock_worker
 SRCS = utils/main.c utils/orchestrator.c utils/parallax_team.c utils/barrier.c ../Agent_Init/network/linked_list.c ../Agent_Init/network/network_agent.c ../Agent_Init/network/ms_queue.c ../Agent_Init/network/socket.c
 MASTER_THREAD_SRCS = utils/master_thread.c ../Agent_Init/network/network_agent.c ../Agent_Init/network/ms_queue.c ../Agent_Init/network/socket.c ../Agent_Init/network/linked_list.c
 TEST_SRCS = test_prog_client.c ../Agent_Init/network/network_agent.c ../Agent_Init/network/ms_queue.c ../Agent_Init/network/socket.c ../Agent_Init/network/linked_list.c
-TEST_EXEC_SRCS = test_master_exec.c utils/master_exec.c utils/orchestrator.c utils/parallax_team.c utils/barrier.c ../Agent_Init/network/network_agent.c ../Agent_Init/network/ms_queue.c ../Agent_Init/network/socket.c ../Agent_Init/network/linked_list.c
+TEST_EXEC_SRCS = test_master_exec.c utils/master_exec.c utils/orchestrator.c utils/parallax_team.c utils/barrier.c utils/net_utils.c ../Agent_Init/network/network_agent.c ../Agent_Init/network/ms_queue.c ../Agent_Init/network/socket.c ../Agent_Init/network/linked_list.c
 TEST_WORKER_SRCS = test_mock_worker.c ../Agent_Init/network/network_agent.c ../Agent_Init/network/ms_queue.c ../Agent_Init/network/socket.c ../Agent_Init/network/linked_list.c
 
 
