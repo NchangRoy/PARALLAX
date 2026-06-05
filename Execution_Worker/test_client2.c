@@ -1,191 +1,306 @@
+#include "worker_exec.h"
+#include "ms_queue.h"
+#include <fcntl.h>
+#include <pthread.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <sys/msg.h>
-#include "network_agent.h"
-#include "worker_exec.h"
-#include "ms_queue.h"
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include<errno.h>
+#define PROG_TYPE "PROG"
+#define TASK_TYPE "TASK"
+#define MASTER_IP "127.0.0.1"
+#define MASTER_PORT 9001
 
-void init_master_agent() {
-    static network_agent_config cfg = {9001, "client_out"};
-    pthread_t net_thread;
-    pthread_create(&net_thread, NULL, network_thread_run, &cfg);
-    
-    // Give threads a moment to start
-    usleep(500000); 
-    printf("[Master] Network agent started on port %d.\n", cfg.port);
-}
+typedef struct {
+  char prog_name[64];
+  char task_mq[64];
+} program_mapping;
 
-int check_program_exists(char *ip, int port, const char *prog_name, char *task_mq_name) {
-    size_t total_size = sizeof(message_t) + strlen(prog_name) + 1;
-    message_t *msg = malloc(total_size);
-    memset(msg, 0, total_size);
+#define MAX_PROGRAMS 100
+program_mapping loaded_programs[MAX_PROGRAMS];
+int loaded_programs_count = 0;
+pthread_mutex_t mapping_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-    msg->mq_type = 1;
-    memcpy(msg->type, "PROG", 4);
-    memcpy(msg->recv_type, "CHCK", 4);
-    msg->size = strlen(prog_name) + 1;
-    strcpy(msg->data, prog_name);
+void *execution_thread_func(void *arg) {
 
-    create_mq("CHCK", 0);
-    map_entry *entry = find_by_msg_type("CHCK");
-    
-    send_msg(ip, port, "client_out", msg);
-    printf("[Master] Sent CHCK message for %s to worker_exec.\n", prog_name);
-    free(msg);
+  // parse execution context
+  execution_context *context = (execution_context *)arg;
+  message_t *message = (message_t *)context->message;
+  prog_t *prog = (prog_t *)message->data;
 
-    queued_message resp_msg;
-    ssize_t received = msgrcv(entry->queue_id, &resp_msg, sizeof(resp_msg) - sizeof(long), 1L, 0);
-    if (received < 0) {
-        perror("msgrcv CHCK");
-        return -1;
-    }
-    
-    message_t *resp = (message_t *)&resp_msg;
-    strcpy(task_mq_name, resp->data);
-    printf("[Master] Received CHCK response: %s\n", task_mq_name);
+  mkdir("scratch", 0777);
+  mkdir("bin", 0777);
 
-    if (strcmp(task_mq_name, "NONE") == 0) return 0;
-    return 1;
-}
+  char prog_name[128];
+  snprintf(prog_name, sizeof(prog_name), "scratch/%.60s.c", prog->prog_name);
 
-int send_prog_message(char *ip, int port) {
-    prog_t prog;
-    memset(&prog, 0, sizeof(prog));
-    strcpy(prog.prog_name, "test_output");
-    strcpy(
-        prog.prog_code,
-        "#include <stdio.h>\n"
-        "#include <stdlib.h>\n"
-        "#include <string.h>\n"
-        "\n"
-        "typedef void *(*fn)(void *);\n"
-        "\n"
-        "void *my_test_function(void *arg) {\n"
-        "    char *input = (char*)arg;\n"
-        "    printf(\"Executing my_test_function with data: %s\\n\", input);\n"
-        "    char *result = malloc(strlen(input) + 64);\n"
-        "    sprintf(result, \"Processed data: [%s]\", input);\n"
-        "    return result;\n"
-        "}\n"
-        "\n"
-        "fn matcher(char *name) {\n"
-        "    if (strcmp(name, \"my_test_function\") == 0) {\n"
-        "        return my_test_function;\n"
-        "    }\n"
-        "    return NULL;\n"
-        "}\n"
-        "\n"
-        "int main() { return 0; }\n"
-    );
+  char bin_name[128];
+  snprintf(bin_name, sizeof(bin_name), "bin/%.60s", prog->prog_name);
 
-    size_t total_size = sizeof(message_t) + sizeof(prog.prog_name) + strlen(prog.prog_code) + 1;
-    message_t *msg = malloc(total_size);
-    memset(msg, 0, total_size);
+  // save code into file
 
-    msg->mq_type = 1;
-    memcpy(msg->type, "PROG", 4);
-    memcpy(msg->recv_type, "RESP", 4);
-    msg->size = sizeof(prog.prog_name) + strlen(prog.prog_code) + 1;
-    memcpy(msg->data, &prog, msg->size);
+  FILE *fp = fopen(prog_name, "w");
+  if (fp == NULL) {
+    perror("Error opening file");
+    exit(1);
+  }
 
-    send_msg(ip, port, "client_out", msg);
-    printf("[Master] Sent PROG message to worker_exec.\n");
-    free(msg);
-    return 0;
-}
+  fwrite(prog->prog_code, 1, strlen(prog->prog_code), fp);
+  fclose(fp);
 
-int receive_task_mq(char *task_mq_name) {
-    create_mq("RESP", 0);
-    map_entry *entry = find_by_msg_type("RESP");
+  // create queue to get tasks
+  char *task_mq = create_mq(NULL, 0);
 
-    queued_message resp_msg;
-    ssize_t received = msgrcv(entry->queue_id, &resp_msg, sizeof(resp_msg) - sizeof(long), 1L, 0);
-    if (received < 0) {
-        perror("msgrcv RESP");
-        return -1;
-    }
-    
-    message_t *resp = (message_t *)&resp_msg;
-    strcpy(task_mq_name, resp->data);
-    printf("[Master] Received response! Extracted task_mq msg_type: %s\n", task_mq_name);
-    return 0;
-}
+  pthread_mutex_lock(&mapping_mutex);
+  if (loaded_programs_count < MAX_PROGRAMS) {
+    strcpy(loaded_programs[loaded_programs_count].prog_name, prog->prog_name);
+    strcpy(loaded_programs[loaded_programs_count].task_mq, task_mq);
+    loaded_programs_count++;
+  }
+  pthread_mutex_unlock(&mapping_mutex);
 
-int send_task_message(char *ip, int port, const char *task_mq_name, const char *payload) {
-    size_t data_len = strlen(payload) + 1;
-    size_t task_size = sizeof(recv_task_t) + data_len;
-    
-    recv_task_t *task = malloc(task_size);
-    memset(task, 0, task_size);
-    strcpy(task->function_name, "my_test_function");
-    task->data_count = 1;
-    strcpy((char *)task->data, payload);
+  message_t *resp = malloc(sizeof(message_t) + strlen(task_mq) + 1);
+  if (!resp) {
+    perror("malloc failed");
+    exit(1);
+  }
+  memset(resp, 0, sizeof(message_t) + strlen(task_mq) + 1);
 
-    size_t total_size = sizeof(message_t) + task_size;
-    message_t *msg = malloc(total_size);
-    memset(msg, 0, total_size);
+  
+ strcpy(resp->type, message->recv_type );
 
-    msg->mq_type = 1;
-    memcpy(msg->type, task_mq_name, strlen(task_mq_name) + 1);
-    memcpy(msg->recv_type, "RESP", 4); // Ask worker to reply to "RESP" queue
-    msg->size = task_size;
-    memcpy(msg->data, task, task_size);
+  resp->size = strlen(task_mq) + 1;
 
-    send_msg(ip, port, "client_out", msg);
-    printf("[Master] Sent recv_task_t using target msg_type: %s\n", task_mq_name);
-    
-    free(task);
-    free(msg);
-    return 0;
-}
+  strcpy(resp->data, task_mq);
+  // reply the message wiht the queue message type
+  send_msg(context->master_ip, context->port, "outgoing", resp);
 
-int receive_task_result() {
-    printf("[Master] Waiting for task execution result on queue RESP...\n");
-    create_mq("RESP", 0);
-    map_entry *entry = find_by_msg_type("RESP");
+  free(resp);
 
-    queued_message resp_msg;
-    ssize_t received = msgrcv(entry->queue_id, &resp_msg, sizeof(resp_msg) - sizeof(long), 1L, 0);
-    if (received < 0) {
-        perror("msgrcv RESP");
-        return -1;
+  // get the m_queue from the taskname
+  map_entry *entry = find_by_msg_type(task_mq);
+
+  printf("Generated this mq_id %s\n", task_mq);
+
+  if (!entry)
+    return NULL;
+  int mq_id = entry->queue_id;
+
+  // compile the program and generate binary
+  int pid = fork();
+
+  if (pid == 0) {
+    char logic_path[128] = "logic.c";
+    if (access(logic_path, F_OK) != 0) {
+      strcpy(logic_path, "Execution_Worker/logic.c");
     }
 
-    message_t *resp = (message_t *)&resp_msg;
-    printf("[Master] Task result: %s\n", resp->data);
-    return 0;
-}
+    char *args[] = {"gcc", prog_name, logic_path, "-Wl,-e,worker_entry",
+                    "-o",  bin_name,  NULL};
 
-int main() {
-    init_master_agent();
+    execvp("gcc", args);
 
-    char *worker_ip = "127.0.0.1";
-    int worker_port = 9000;
+    perror("gcc exec failed");
+    exit(1);
+  }
 
-    char task_mq_name[64];
-    memset(task_mq_name, 0, sizeof(task_mq_name));
-    
-    int exists = check_program_exists(worker_ip, worker_port, "test_output", task_mq_name);
-    if (exists < 0) return 1;
+  wait(NULL);
 
-    if (!exists) {
-        if (send_prog_message(worker_ip, worker_port) < 0) return 1;
-        memset(task_mq_name, 0, sizeof(task_mq_name));
-        if (receive_task_mq(task_mq_name) < 0) return 1;
-    } else {
-        printf("[Master] Program already exists on worker, skipping PROG send.\n");
+  while (1) {
+
+    queued_message msg;
+    ssize_t received = msgrcv(mq_id, &msg, sizeof(msg) - sizeof(long), 1, 0);
+
+    message_t *message = (message_t *)&msg;
+
+    recv_task_t *task = (recv_task_t *)message->data;
+    printf("received function %s\n", task->function_name);
+    printf("received data %p\n", task->data);
+
+    /* execution phase */
+
+    int pipefd[2];
+    if (pipe(pipefd) < 0) {
+      perror("pipe failed");
+      continue;
     }
 
-    if (send_task_message(worker_ip, worker_port, task_mq_name, "Task1_Payload") < 0) return 1;
-    if (receive_task_result() < 0) return 1;
+    int run_pid = fork();
 
-    if (send_task_message(worker_ip, worker_port, task_mq_name, "Task2_Payload") < 0) return 1;
-    if (receive_task_result() < 0) return 1;
+    if (run_pid == 0) {
+      close(pipefd[0]);
+      char binary_path[128];
 
-    // Optional: wait before exiting to let sockets flush
-    usleep(100000);
-    return 0;
+      snprintf(binary_path, sizeof(binary_path), "./bin/%s", prog->prog_name);
+
+      char fd_str[16];
+      snprintf(fd_str, sizeof(fd_str), "%d", pipefd[1]);
+
+      char data_filename[128];
+      snprintf(data_filename, sizeof(data_filename), "scratch/data_%d.bin", getpid());
+      FILE *dfp = fopen(data_filename, "wb");
+      if (dfp) {
+          size_t data_size = message->size - sizeof(recv_task_t);
+          fwrite(task->data, 1, data_size, dfp);
+          fclose(dfp);
+      }
+
+      char *arg[] = {binary_path, task->function_name, data_filename,
+                     fd_str, NULL};
+
+      execvp(binary_path, arg);
+
+      perror("binary exec failed");
+      exit(1);
+    }
+
+    close(pipefd[1]);
+    char ret_buf[256];
+    memset(ret_buf, 0, sizeof(ret_buf));
+    read(pipefd[0], ret_buf, sizeof(ret_buf) - 1);
+    close(pipefd[0]);
+
+    int status;
+    waitpid(run_pid, &status, 0);
+
+    printf("Task executed. Result: %s\n", ret_buf);
+
+    message_t *result_msg = malloc(sizeof(message_t) + strlen(ret_buf) + 1);
+    memset(result_msg, 0, sizeof(message_t) + strlen(ret_buf) + 1);
+    result_msg->mq_type = 1;
+    strcpy(result_msg->type, message->recv_type);
+    result_msg->size = strlen(ret_buf) + 1;
+    strcpy(result_msg->data, ret_buf);
+
+    send_msg(message->sender_ip, message->sender_port, "outgoing", result_msg);
+    free(result_msg);
+  }
+}
+
+
+void *worker_exec_thread(void *arg) {
+
+  (void)arg;
+
+  printf("offsetof(message_t, data) = %zu\n", offsetof(message_t, data));
+  printf("offsetof(queued_message, data) = %zu\n",
+         offsetof(queued_message, data));
+  char *code_mq = create_mq("CHCK", 0);
+
+    char *prog_mq = create_mq("PROG", 0);
+
+  if (code_mq == NULL) {
+    perror("Error creating message queue for programs");
+    return NULL;
+  }
+  printf("Created CHCK mq\n");
+  queued_message msg;
+  map_entry *entry = find_by_msg_type("CHCK");
+  if (!entry) {
+    fprintf(stderr, "Could not find CHCK queue\n");
+    return NULL;
+  }
+
+  
+  
+
+
+   if (prog_mq == NULL) {
+    perror("Error creating message queue for programs");
+    return NULL;
+  }
+  printf("Created PROG mq\n");
+  
+  map_entry *prog_entry = find_by_msg_type("PROG");
+  if (!prog_entry) {
+    fprintf(stderr, "Could not find PROG queue\n");
+    return NULL;
+  }
+  int mq_id = entry->queue_id;
+
+
+
+
+
+
+  while (1) {
+      printf("[WorkerExec] Agent CHCK queue ready. Waiting for messages...\n");
+    ssize_t received =
+        msgrcv(mq_id, &msg, sizeof(msg) - sizeof(long), 1, 0);
+
+    if (received <= 0) {
+      perror("msgrcv failed");
+      continue;
+    }
+
+    message_t *message = (message_t *)&msg;
+    printf("Received message of type %s\n", (char *)&message->type);
+
+    int is_chck = strcmp("CHCK", message->type) == 0;
+    if (is_chck) {
+      char *requested_prog = (char *)message->data;
+      printf("Received CHCK request for prog_name: %s\n", requested_prog);
+      char found_mq[64] = "NONE";
+
+      pthread_mutex_lock(&mapping_mutex);
+      for (int i = 0; i < loaded_programs_count; i++) {
+        if (strcmp(loaded_programs[i].prog_name, requested_prog) == 0) {
+          strcpy(found_mq, loaded_programs[i].task_mq);
+          break;
+        }
+      }
+      pthread_mutex_unlock(&mapping_mutex);
+
+      message_t *resp = malloc(sizeof(message_t) + strlen(found_mq) + 1);
+      memset(resp, 0, sizeof(message_t) + strlen(found_mq) + 1);
+      resp->mq_type = 1;
+      strcpy(resp->type, message->recv_type);
+      resp->size = strlen(found_mq) + 1;
+      strcpy(resp->data, found_mq);
+      printf("Sending response to %s:%d on mq %s with mq %s\n",
+             message->sender_ip, message->sender_port, resp->type, found_mq);
+
+      send_msg(message->sender_ip, message->sender_port, "outgoing", resp);
+      free(resp);
+
+      /* Only wait for PROG if the program was not found (master will send it) */
+      if (strcmp(found_mq, "NONE") == 0) {
+        printf("[WorkerExec] Program missing, waiting for PROG message...\n");
+        received = -1;
+        while (received < 0) {
+          received = msgrcv(prog_entry->queue_id, &msg,
+                            sizeof(msg) - sizeof(long), 1, 0);
+          if (received < 0) {
+            if (errno == ENOMSG) {
+              usleep(100000);
+              continue;
+            }
+            perror("msgrcv PROG failed");
+            continue;
+          }
+        }
+        message = (message_t *)&msg;
+        printf("Received PROG message of type: %s\n", message->type);
+
+        int is_prog = (strcmp("PROG", message->type) == 0);
+        if (is_prog) {
+          printf("[WorkerExec] Starting execution thread for new program.\n");
+          execution_context *context =
+              (execution_context *)malloc(sizeof(execution_context));
+          context->master_ip = strdup(message->sender_ip);
+          context->port = message->sender_port;
+          context->message = message;
+          pthread_t worker_thread;
+          pthread_create(&worker_thread, NULL, execution_thread_func,
+                         (void *)context);
+        }
+      }
+    }
+  }
+  return NULL;
 }

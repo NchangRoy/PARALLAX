@@ -3,11 +3,11 @@
   "ip": "192.168.246.224",
   "port": 9000,
   "status": 0,
-  "last_heartbeat": 1780565482,
+  "last_heartbeat": 1780658300,
   "hardware": {
     "cpu_cores": 6,
     "cpu_threads_per_core": 12,
-    "cpu_freq_mhz": 900.0,
+    "cpu_freq_mhz": 400.0,
     "cpu_model": "Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz",
     "ram_total_mb": 15591,
     "disk_total_gb": 100220,

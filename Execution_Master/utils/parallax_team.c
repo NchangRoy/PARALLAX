@@ -144,7 +144,7 @@ int check_program_exists(char *ip, int port, const char *prog_name,
 int send_prog_message_and_wait(char *ip, int port, char *task_mq_name) {
   prog_t prog;
   memset(&prog, 0, sizeof(prog));
-  strcpy(prog.prog_name, "test_output");
+  strcpy(prog.prog_name, "test_prog2");
   strcpy(prog.prog_code, "#include <stdio.h>\n"
                          "#include <stdlib.h>\n"
                          "#include <string.h>\n"
@@ -352,7 +352,7 @@ void *thread_func_test(void *arg) {
 
   int exists =
       check_program_exists(param->exec_node->ip, param->exec_node->port,
-                           "test_output", task_mq_name);
+                           "test_prog2", task_mq_name);
   if (exists == 0) {
     /* Step 2 — PROG (only when missing) */
     printf("[Team] Program missing on worker, sending source...\n");
