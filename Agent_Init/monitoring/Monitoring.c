@@ -138,18 +138,18 @@ void *monitoring_thread_run(void *arg){
         pthread_mutex_unlock(&metrics_mutex);
         
         // ═══ SEND MESSAGES ═══
-        // Phase 1: Send HEARTBEAT_INIT (with static + dynamic metrics) once after 1st collection
+        // Phase 1: Send STATECAPTURE_INIT (with static + dynamic metrics) once after 1st collection
         if (!heartbeat_sent) {
-            m.type = MSG_HEARTBEAT_INIT;
+            m.type = MSG_STATECAPTURE_INIT;
             
             // DEBUG: Afficher les données avant envoi
-            debug_print_sent_metrics(&m, "MSG_HEARTBEAT_INIT");
+            debug_print_sent_metrics(&m, "MSG_STATECAPTURE_INIT");
             
             message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
             if (pkt) {
                 pkt->mq_type=1;
                
-                strcpy(pkt->type,HB_INIT_TYPE);
+                strcpy(pkt->type,STATECAPTURE_INIT_TYPE);
                 pkt->size = sizeof(MachineMetrics);
                 memcpy(pkt->data, &m, sizeof(MachineMetrics));
 
@@ -158,26 +158,26 @@ void *monitoring_thread_run(void *arg){
                 free(pkt);
                 heartbeat_sent = 1;
                 msg_count++;
-                printf("[MONITORING] MSG_HEARTBEAT_INIT sent (msg #%d)\n", msg_count);
+                printf("[MONITORING] MSG_STATECAPTURE_INIT sent (msg #%d)\n", msg_count);
             }
         }
-        // Phase 2+: Send HEARTBEAT (dynamic metrics only) regularly
+        // Phase 2+: Send STATECAPTURE (dynamic metrics only) regularly
         else {
-            m.type = MSG_HEARTBEAT;
+            m.type = MSG_STATECAPTURE;
             
             // DEBUG: Afficher les données avant envoi
-            debug_print_sent_metrics(&m, "MSG_HEARTBEAT");
+            debug_print_sent_metrics(&m, "MSG_STATECAPTURE");
             
             message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineMetrics));
             if (pkt) {
                 pkt->mq_type=1;
-                strcpy(pkt->type,HB_TYPE);
+                strcpy(pkt->type,STATECAPTURE_TYPE);
                 pkt->size = sizeof(MachineMetrics);
                 memcpy(pkt->data, &m, sizeof(MachineMetrics));
                 send_msg(controller_ip, 9000, NULL, pkt);
                 free(pkt);
                 msg_count++;
-                printf("[MONITORING] MSG_HEARTBEAT sent (msg #%d)\n", msg_count);
+                printf("[MONITORING] MSG_STATECAPTURE sent (msg #%d)\n", msg_count);
             }
         }
 

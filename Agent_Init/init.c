@@ -3,6 +3,7 @@
 #include "../Execution_Worker/worker_exec.h"
 #include "master_thread.h"
 #include "monitoring/Monitoring.h"
+#include "heart_beat/heartbeat.h"
 #include "network_agent.h"
 #include "state_receiver.h"
 
@@ -410,6 +411,13 @@ static void stop_threads(void) {
     printf("[THREAD] Monitoring thread stopped\n");
   }
 
+  if (agent.threads.heartbeat_active) {
+    heartbeat_stop();
+    pthread_join(agent.threads.heartbeat, NULL);
+    agent.threads.heartbeat_active = 0;
+    printf("[THREAD] Heartbeat thread stopped\n");
+  }
+
   if (agent.threads.network_active) {
     network_stop();
     pthread_join(agent.threads.network, NULL);
@@ -468,6 +476,13 @@ void initialize_agent(void) {
     sleep(1);
     if (agent.role != ROLE_CONTROLLER) {
         send_hello();
+        
+        // Start lightweight heartbeat thread after HELLO is sent
+        if (!agent.threads.heartbeat_active) {
+            pthread_create(&agent.threads.heartbeat, NULL, heartbeat_thread_run, NULL);
+            agent.threads.heartbeat_active = 1;
+            printf("[THREAD] Heartbeat (lightweight status) thread started\n");
+        }
     }
 
   // 3. Start threads based on role

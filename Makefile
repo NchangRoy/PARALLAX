@@ -6,6 +6,7 @@ TARGET  = parallax_agent
 SRCS = main.c \
        Agent_Init/init.c \
        Agent_Init/monitoring/Monitoring.c \
+	   Agent_Init/heart_beat/heartbeat.c \
 	   Agent_Init/network/*.c \
 	   Controller/state_receiver/*.c \
 	   Execution_Worker/worker_exec.c \
@@ -33,6 +34,7 @@ endif
 INCLUDES = -I./Agent_Init \
 			-I./Agent_Init/network \
 			-I./Agent_Init/monitoring \
+			-I./Agent_Init/heart_beat \
 		   	-I./Controller/state_receiver \
 			-I./Execution_Worker \
 			-I./parallax \

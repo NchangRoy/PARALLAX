@@ -44,6 +44,9 @@ typedef struct {
 
     pthread_t master_thread;
     int master_thread_active;
+
+    pthread_t heartbeat;
+    int heartbeat_active;
 } AgentThreads;
 
 // ===== AGENT STATE =====

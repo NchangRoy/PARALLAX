@@ -24,7 +24,7 @@ MachineMetrics *get_mock_machine_metrics() {
         snprintf(metrics[i].uuid, sizeof(metrics[i].uuid), "mock-node-%d", i);
         strcpy(metrics[i].ip, "127.0.0.1");
         metrics[i].port = 8000 + i;
-        metrics[i].type = MSG_HEARTBEAT;
+        metrics[i].type = MSG_STATECAPTURE; // Type générique pour les métriques
 
         // Caractéristiques matérielles fixes
         metrics[i].cpu_cores = 8;

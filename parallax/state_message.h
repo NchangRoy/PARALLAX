@@ -2,14 +2,15 @@
 #define STATE_MESSAGE_H
 
 #define MSG_HELLO           1
-#define MSG_HEARTBEAT       2
-#define MSG_HEARTBEAT_INIT  3
-
+#define MSG_STATECAPTURE    2
+#define MSG_STATECAPTURE_INIT  3
+#define MSG_HEARTBEAT  4
 
 
 #define HELLO_TYPE "HELLO"
-#define HB_TYPE "HB"
-#define HB_INIT_TYPE "HB_INIT"
+#define STATECAPTURE_TYPE "STATECAPTURE"
+#define STATECAPTURE_INIT_TYPE "STATECAPTURE_INIT"
+#define HB_TYPE "HEARTBEAT"
 #define BE_TYPE "BACKEND"
 
 
@@ -63,5 +64,15 @@ typedef struct{
     char  disk_mount[32];
     char  network_iface[16];
 }MachineMetrics;
+
+// heartbeat message (sent every 2 seconds)
+typedef struct{
+    char uuid[37];     // 36 chars + null terminator
+    char ip[16];
+    int port;
+    int type;          // MSG_HEARTBEAT
+    int role;          // ROLE_UNKNOWN=0, ROLE_WORKER=1, ROLE_CONTROLLER=2, ROLE_MASTER=3
+    time_t timestamp;
+}MachineHeartbeat;
 
 #endif // STATE_MESSAGE_H

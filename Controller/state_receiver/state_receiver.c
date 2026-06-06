@@ -317,13 +317,45 @@ void print_machine_metrics(const MachineMetrics *m)
 
 
 /**
- * Met à jour les métriques d'un nœud lors de la réception d'un MSG_HEARTBEAT.
+ * Met à jour le heartbeat d'un nœud lors de la réception d'un MSG_HEARTBEAT.
+ * Met simplement à jour le timestamp et vérifie la disponibilité.
  */
-static void update_heartbeat(MachineMetrics* msg) {
+static void update_heartbeat(MachineHeartbeat* hb) {
+    if (!hb || strlen(hb->uuid) == 0) return;
+    pthread_mutex_lock(&g_node_table.lock);
+
+    NodeInfo* node = node_table_find(&g_node_table, hb->uuid);
+    if (!node) {
+        printf("[StateReceiver] ⚠ Nœud inconnu %s (lightweight HB), auto-enregistrement...\n", hb->uuid);
+        node = node_table_add(&g_node_table, hb->uuid, hb->ip, hb->port);
+        if (!node) {
+            pthread_mutex_unlock(&g_node_table.lock);
+            return;
+        }
+    }
+    
+    // Update lightweight information
+    strncpy(node->ip, hb->ip, sizeof(node->ip) - 1);
+    node->ip[sizeof(node->ip) - 1] = '\0';
+    node->port = hb->port;
+    node->role = hb->role;
+    node->last_heartbeat = time(NULL);
+    node->status = NODE_ACTIF;  // Mark as active (heartbeat received)
+
+    printf("[StateReceiver] Lightweight heartbeat from %s (role=%d, status=ACTIF)\n", 
+           hb->uuid, hb->role);
+
+    pthread_mutex_unlock(&g_node_table.lock);
+}
+
+/**
+ * Met à jour les métriques d'un nœud lors de la réception d'un MSG_STATECAPTURE.
+ */
+static void update_metrics(MachineMetrics* msg) {
     if (!msg || strlen(msg->uuid) == 0) return;
     pthread_mutex_lock(&g_node_table.lock);
 
-    printf("\n\n\nFrom update Heartbeat");
+    printf("\n\n\nFrom update Metrics");
      print_machine_metrics(msg);
    //printf("[StateReceiver] Received a Heartbeat\n");
     NodeInfo* node = node_table_find(&g_node_table, msg->uuid);
@@ -372,14 +404,14 @@ static void update_heartbeat(MachineMetrics* msg) {
 }
 
 /**
- * Initialise le hardware d'un nœud lors de la réception d'un MSG_HEARTBEAT_INIT.
+ * Initialise le hardware d'un nœud lors de la réception d'un MSG_STATECAPTURE_INIT.
  */
-static void init_heartbeat(MachineMetrics* msg) {
+static void init_metrics(MachineMetrics* msg) {
     if (!msg || strlen(msg->uuid) == 0) return;
     pthread_mutex_lock(&g_node_table.lock);
 
 
-     printf("\n\n\nFrom update Heartbeat");
+     printf("\n\n\nFrom init Statecapture");
     print_machine_metrics(msg);
 
     
@@ -448,13 +480,12 @@ static void init_heartbeat(MachineMetrics* msg) {
 
 
 
-void * heartbeat_init_func(void * arg){
-        //parse entry
-          printf("Entered here 4\n");
-        map_entry * heartbeat_entry=(map_entry * )arg;
+void * statecapture_init_func(void * arg){
+        printf("[STATECAPTURE_INIT] Thread started\n");
+        map_entry * statecapture_init_entry=(map_entry * )arg;
         queued_message qmsg;
         while(1){
-            ssize_t ret = msgrcv(heartbeat_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
+            ssize_t ret = msgrcv(statecapture_init_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
                              1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
         if (ret == -1) {
             usleep(100000);   // 100ms — pas de message, on repoll
@@ -463,20 +494,41 @@ void * heartbeat_init_func(void * arg){
 
         // Le payload du network_agent est dans qmsg.data
         MachineMetrics *msg = (MachineMetrics *)qmsg.data;
-        init_heartbeat(msg);
-        printf("received a hearbeat\n");
+        init_metrics(msg);
+        printf("[STATECAPTURE_INIT] Received STATECAPTURE_INIT message from %s\n", msg->uuid);
         }
 
 
 }
 
-void * heartbeat_func(void * arg){
-
-      printf("Entered here 4\n");
-     map_entry * heartbeat_entry=(map_entry * )arg;
+void * heartbeat_receiver_func(void * arg){
+        printf("[HEARTBEAT] Thread started\n");
+        map_entry * heartbeat_entry = (map_entry *)arg;
         queued_message qmsg;
+        
         while(1){
             ssize_t ret = msgrcv(heartbeat_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
+                             1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
+            if (ret == -1) {
+                usleep(100000);   // 100ms — pas de message, on repoll
+                continue;
+            }
+
+            // Le payload du network_agent est dans qmsg.data
+            MachineHeartbeat *hb = (MachineHeartbeat *)qmsg.data;
+            update_heartbeat(hb);
+            printf("[HEARTBEAT] Received heartbeat from %s\n", hb->uuid);
+        }
+        
+        return NULL;
+}
+
+void * statecapture_func(void * arg){
+        printf("[STATECAPTURE] Thread started\n");
+        map_entry * statecapture_entry=(map_entry * )arg;
+        queued_message qmsg;
+        while(1){
+            ssize_t ret = msgrcv(statecapture_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
                              1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
         if (ret == -1) {
             usleep(100000);   // 100ms — pas de message, on repoll
@@ -485,20 +537,21 @@ void * heartbeat_func(void * arg){
 
         // Le payload du network_agent est dans qmsg.data
         MachineMetrics *msg = (MachineMetrics *)qmsg.data;
-        update_heartbeat(msg);
-        printf("received a hearbeat\n");
+        update_metrics(msg);
+        printf("[STATECAPTURE] Received STATECAPTURE message from %s\n", msg->uuid);
         }
+        return NULL;
 }
 
 
 void * hello_func(void * arg){
 
-    printf("Entered here 3\n");
-    map_entry * heartbeat_entry=(map_entry * )arg;
+    printf("[HELLO] Thread started\n");
+    map_entry * hello_entry=(map_entry * )arg;
     queued_message qmsg;
     
     while(1){
-        ssize_t ret = msgrcv(heartbeat_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
+        ssize_t ret = msgrcv(hello_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
                          1L, IPC_NOWAIT); // NETWORK_AGENT_MTYPE is 1L
         if (ret == -1) {
             usleep(100000);   // 100ms — pas de message, on repoll
@@ -511,7 +564,7 @@ void * hello_func(void * arg){
         // Le payload du network_agent est dans qmsg.data
         MachineMetrics *msg = (MachineMetrics *)qmsg.data;
         register_node(msg);
-        printf("received a HELLO message\n");
+        printf("[HELLO] Received HELLO message from %s\n", msg->uuid);
         
         // Reply with our IP dynamically
         char iface[64] = {0};
@@ -525,7 +578,7 @@ void * hello_func(void * arg){
         sprintf(reply->data, "IP:%s", my_ip);
         reply->size = strlen(reply->data) + 1;
         
-        printf("Replying to HELLO with our IP: %s directly to agent at %s:%d\n", my_ip, msg->ip, msg->port);
+        printf("Replying to HELLO with controller IP: %s sent to agent at %s:%d\n", my_ip, msg->ip, msg->port);
         // Reply directly via reliable TCP unicast to the agent instead of a broadcast
         send_broadcast_message(9001, reply);
         free(reply);
@@ -545,7 +598,7 @@ static atomic_int  receiver_running = 0;
 void* state_receiver_thread_run(void* arg) {
     (void)arg;
 
-    printf("Started here");
+    printf("[StateReceiver] Thread started\n");
     
     // Initialisation de la table globale
     node_table_init(&g_node_table);
@@ -563,54 +616,61 @@ void* state_receiver_thread_run(void* arg) {
 
 
     
-    char * mq_heartbeat_init_str = create_mq(HB_INIT_TYPE, sizeof(queued_message));
-
-    char * mq_heartbeat_str = create_mq(HB_TYPE, sizeof(queued_message));    
-
+    char * mq_statecapture_init_str = create_mq(STATECAPTURE_INIT_TYPE, sizeof(queued_message));
+    char * mq_statecapture_str = create_mq(STATECAPTURE_TYPE, sizeof(queued_message));    
     char * mq_hello_str = create_mq(HELLO_TYPE, sizeof(queued_message));
-
     char * mq_backend_str = create_mq(BE_TYPE, sizeof(queued_message));
+    char * mq_heartbeat_str = create_mq(HB_TYPE, sizeof(queued_message));
 
-
-    if (mq_heartbeat_init_str == NULL) {
+    if (mq_statecapture_init_str == NULL) {
         perror("[StateReceiver] create_mq()");
         return NULL;
     }
     
-    map_entry * hearbeat_init = find_by_msg_type(mq_heartbeat_init_str);
-    map_entry * heartbeat=find_by_msg_type(mq_heartbeat_str);
-    map_entry * hello=find_by_msg_type(mq_hello_str);
-    map_entry * backend=find_by_msg_type(mq_backend_str);
-    if (!hearbeat_init) {
-        fprintf(stderr, "[StateReceiver] heartbeat init queue not created \n");
+    map_entry * statecapture_init_entry = find_by_msg_type(mq_statecapture_init_str);
+    map_entry * statecapture_entry = find_by_msg_type(mq_statecapture_str);
+    map_entry * hello_entry = find_by_msg_type(mq_hello_str);
+    map_entry * backend_entry = find_by_msg_type(mq_backend_str);
+    map_entry * heartbeat_entry = find_by_msg_type(mq_heartbeat_str);
+    
+    if (!statecapture_init_entry) {
+        fprintf(stderr, "[StateReceiver] STATECAPTURE_INIT queue not created \n");
         return NULL;
     }
 
-     if (!heartbeat) {
-        fprintf(stderr, "[StateReceiver] heartbeat  queue not created \n");
+    if (!statecapture_entry) {
+        fprintf(stderr, "[StateReceiver] STATECAPTURE queue not created \n");
         return NULL;
     }
 
-     if (!hello) {
-        fprintf(stderr, "[StateReceiver] hello queue not created \n");
+    if (!hello_entry) {
+        fprintf(stderr, "[StateReceiver] HELLO queue not created \n");
         return NULL;
-        
     }
 
-     if (!backend) {
-        fprintf(stderr, "[StateReceiver] backend queue not created \n");
+    if (!backend_entry) {
+        fprintf(stderr, "[StateReceiver] BACKEND queue not created \n");
         return NULL;
     }
-    pthread_t hearbeat_init_thread;
-    pthread_t heartbeat_thread;
+
+    if (!heartbeat_entry) {
+        fprintf(stderr, "[StateReceiver] HEARTBEAT queue not created \n");
+        return NULL;
+    }
+    
+    pthread_t statecapture_init_thread;
+    pthread_t statecapture_thread;
     pthread_t hello_thread;
     pthread_t get_xtics_thread;
     pthread_t backend_thread;
-    pthread_create(&hearbeat_init_thread,NULL,heartbeat_init_func,(void * )hearbeat_init);
-    pthread_create(&heartbeat_thread,NULL,heartbeat_func,(void * )heartbeat);
-    pthread_create(&hello_thread,NULL,hello_func,(void * )hello);
-    pthread_create(&get_xtics_thread,NULL,get_machine_xtics,NULL);
-    pthread_create(&backend_thread,NULL,backend_func,(void * )backend);
+    pthread_t heartbeat_thread;
+    
+    pthread_create(&statecapture_init_thread, NULL, statecapture_init_func, (void *)statecapture_init_entry);
+    pthread_create(&statecapture_thread, NULL, statecapture_func, (void *)statecapture_entry);
+    pthread_create(&hello_thread, NULL, hello_func, (void *)hello_entry);
+    pthread_create(&get_xtics_thread, NULL, get_machine_xtics, NULL);
+    pthread_create(&backend_thread, NULL, backend_func, (void *)backend_entry);
+    pthread_create(&heartbeat_thread, NULL, heartbeat_receiver_func, (void *)heartbeat_entry);
 
 
     
