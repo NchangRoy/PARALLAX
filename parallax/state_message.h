@@ -68,11 +68,7 @@ typedef struct{
 // heartbeat message (sent every 2 seconds)
 typedef struct{
     char uuid[37];     // 36 chars + null terminator
-    char ip[16];
-    int port;
     int type;          // MSG_HEARTBEAT
-    int role;          // ROLE_UNKNOWN=0, ROLE_WORKER=1, ROLE_CONTROLLER=2, ROLE_MASTER=3
-    time_t timestamp;
 }MachineHeartbeat;
 
 #endif // STATE_MESSAGE_H

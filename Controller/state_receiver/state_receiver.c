@@ -326,24 +326,16 @@ static void update_heartbeat(MachineHeartbeat* hb) {
 
     NodeInfo* node = node_table_find(&g_node_table, hb->uuid);
     if (!node) {
-        printf("[StateReceiver] ⚠ Nœud inconnu %s (lightweight HB), auto-enregistrement...\n", hb->uuid);
-        node = node_table_add(&g_node_table, hb->uuid, hb->ip, hb->port);
-        if (!node) {
-            pthread_mutex_unlock(&g_node_table.lock);
-            return;
-        }
+        // Node not yet registered (heartbeat received before HELLO), skip it
+        printf("[HEARTBEAT] ⚠ Heartbeat from unknown node %s, waiting for HELLO registration\n", hb->uuid);
+        pthread_mutex_unlock(&g_node_table.lock);
+        return;
     }
     
-    // Update lightweight information
-    strncpy(node->ip, hb->ip, sizeof(node->ip) - 1);
-    node->ip[sizeof(node->ip) - 1] = '\0';
-    node->port = hb->port;
-    node->role = hb->role;
+    // Update only the heartbeat timestamp (status monitoring handled by heartbeat_monitor_thread)
     node->last_heartbeat = time(NULL);
-    node->status = NODE_ACTIF;  // Mark as active (heartbeat received)
-
-    printf("[StateReceiver] Lightweight heartbeat from %s (role=%d, status=ACTIF)\n", 
-           hb->uuid, hb->role);
+    printf("[HEARTBEAT] Heartbeat from %s - last_heartbeat updated (status: %d)\n", 
+           hb->uuid, node->status);
 
     pthread_mutex_unlock(&g_node_table.lock);
 }
@@ -516,7 +508,6 @@ void * heartbeat_receiver_func(void * arg){
 
             // Le payload du network_agent est dans qmsg.data
             MachineHeartbeat *hb = (MachineHeartbeat *)qmsg.data;
-            update_heartbeat(hb);
             printf("[HEARTBEAT] Received heartbeat from %s\n", hb->uuid);
         }
         
@@ -584,6 +575,56 @@ void * hello_func(void * arg){
         free(reply);
     }
     return NULL;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  HEARTBEAT MONITOR THREAD - Detects stale/failed nodes
+// ════════════════════════════════════════════════════════════════════════════
+// Runs periodically and updates node status based on heartbeat timeout
+
+#define HEARTBEAT_MONITOR_INTERVAL 1  // Check every 1 second
+
+static atomic_int heartbeat_monitor_running = 0;
+
+void* heartbeat_monitor_thread_run(void* arg) {
+    (void)arg;
+    printf("[HEARTBEAT_MONITOR] Thread started\n");
+    
+    while (atomic_load(&heartbeat_monitor_running)) {
+        time_t now = time(NULL);
+        pthread_mutex_lock(&g_node_table.lock);
+        
+        for (NodeInfo* node = g_node_table.head; node; node = node->next) {
+            time_t silence_duration = now - node->last_heartbeat;
+            
+            // Determine new status based on silence duration
+            NodeStatus new_status = NODE_ACTIF;
+            
+            if (silence_duration > T_FAILED_SEC) {
+                new_status = NODE_EN_PANNE;  // > 8s = confirmed failed
+            } else if (silence_duration > T_SUSPECT_SEC) {
+                new_status = NODE_SUSPECT;   // > 4s = suspect
+            }
+            
+            // Log status changes
+            if (new_status != node->status) {
+                const char* status_str[] = {"ACTIF", "SUSPECT", "EN_PANNE", "SURCHARGE", "EN_MAINTENANCE"};
+                printf("[HEARTBEAT_MONITOR] Node %s status change: %s → %s (silence: %lds)\n",
+                       node->uuid, status_str[node->status], status_str[new_status], silence_duration);
+                node->status = new_status;
+            }
+        }
+        
+        pthread_mutex_unlock(&g_node_table.lock);
+        sleep(HEARTBEAT_MONITOR_INTERVAL);
+    }
+    
+    printf("[HEARTBEAT_MONITOR] Thread stopped\n");
+    return NULL;
+}
+
+void heartbeat_monitor_stop(void) {
+    atomic_store(&heartbeat_monitor_running, 0);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -664,6 +705,7 @@ void* state_receiver_thread_run(void* arg) {
     pthread_t get_xtics_thread;
     pthread_t backend_thread;
     pthread_t heartbeat_thread;
+    pthread_t heartbeat_monitor_thread;
     
     pthread_create(&statecapture_init_thread, NULL, statecapture_init_func, (void *)statecapture_init_entry);
     pthread_create(&statecapture_thread, NULL, statecapture_func, (void *)statecapture_entry);
@@ -671,6 +713,10 @@ void* state_receiver_thread_run(void* arg) {
     pthread_create(&get_xtics_thread, NULL, get_machine_xtics, NULL);
     pthread_create(&backend_thread, NULL, backend_func, (void *)backend_entry);
     pthread_create(&heartbeat_thread, NULL, heartbeat_receiver_func, (void *)heartbeat_entry);
+    
+    // Start heartbeat monitor thread
+    atomic_store(&heartbeat_monitor_running, 1);
+    pthread_create(&heartbeat_monitor_thread, NULL, heartbeat_monitor_thread_run, NULL);
 
 
     
@@ -694,6 +740,7 @@ void* state_receiver_thread_run(void* arg) {
 
 void state_receiver_stop(void) {
     atomic_store(&receiver_running, 0);
+    heartbeat_monitor_stop();  // Stop the heartbeat monitor thread
     // pthread_join is done in init.c (the caller who created this thread)
     
     flusher_stop();    // flush final + arrêt du thread de persistence

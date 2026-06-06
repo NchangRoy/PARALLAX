@@ -21,23 +21,7 @@ void *heartbeat_thread_run(void *arg){
         
         // Fill heartbeat with minimal data
         hb.type = MSG_HEARTBEAT;
-        hb.timestamp = time(NULL);
-        
-        // Fill UUID from agent
         strncpy(hb.uuid, get_agent_uuid(), sizeof(hb.uuid) - 1);
-        
-        // Fill IP and port dynamically
-        char iface[16] = {0};
-        load_network_interface(iface, sizeof(iface));
-        get_local_ip(hb.ip, sizeof(hb.ip), iface);
-        if (strcmp(hb.ip, "0.0.0.0") == 0) {
-            strcpy(hb.ip, "127.0.0.1"); // Fallback if interface is down
-        }
-        hb.port = 9000; // Default worker listening port
-        
-        // Fill role from global agent role
-        extern int agent_role; // Declared in init.c
-        hb.role = agent_role;
         
         // Send lightweight heartbeat
         message_t *pkt = (message_t *)malloc(sizeof(message_t) + sizeof(MachineHeartbeat));
@@ -50,7 +34,7 @@ void *heartbeat_thread_run(void *arg){
             send_msg(controller_ip, 9000, NULL, pkt);
             
             free(pkt);
-            printf("[HEARTBEAT] Lightweight heartbeat sent (role=%d)\n", hb.role);
+            printf("[HEARTBEAT] Lightweight heartbeat sent for node %s\n", hb.uuid);
         }
 
         sleep(HEARTBEAT_INTERVAL);
