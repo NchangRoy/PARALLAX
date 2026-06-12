@@ -16,7 +16,8 @@ typedef enum {
     ROLE_UNKNOWN = 0,
     ROLE_WORKER = 1,
     ROLE_CONTROLLER = 2,
-    ROLE_MASTER = 3
+    ROLE_MASTER = 3,
+    ROLE_RECEPTIONIST = 4
 } AgentRole;
 
 // ===== THREADS =====

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "heartbeat.h"
 #include "../init.h"
 #include "../network/network_agent.h"

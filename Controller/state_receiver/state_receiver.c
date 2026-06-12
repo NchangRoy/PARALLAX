@@ -171,84 +171,6 @@ void * get_machine_xtics(void * arg){
     return NULL;
 }
 
-void * backend_func(void * arg){
-    printf("[Backend] Backend thread started\n");
-    map_entry * backend_entry = (map_entry *)arg;
-    if (!backend_entry) {
-        fprintf(stderr, "[Backend] backend_entry is NULL\n");
-        return NULL;
-    }
-    
-    queued_message qmsg;
-    
-    while(1){
-        ssize_t ret = msgrcv(backend_entry->queue_id, &qmsg, sizeof(qmsg) - sizeof(long),
-                         1L, IPC_NOWAIT);
-        if (ret == -1) {
-            usleep(100000);   // 100ms — pas de message, on repoll
-            continue;
-        }
-        
-        message_t *message = (message_t *)qmsg.data;
-        
-        printf("[Backend] Received query from type: %s\n", message->type);
-        
-        // Find master node in the node table
-        pthread_mutex_lock(&g_node_table.lock);
-        
-        char master_ip[16] = {0};
-        NodeInfo *curr = g_node_table.head;
-        int master_found = 0;
-        
-        // Search for a node with role == ROLE_MASTER (3)
-        while (curr) {
-            if (curr->role == 3) {  // ROLE_MASTER = 3
-                strcpy(master_ip, curr->ip);
-                master_found = 1;
-                printf("[Backend] Found master node: %s at %s\n", curr->uuid, curr->ip);
-                break;
-            }
-            curr = curr->next;
-        }
-        
-        pthread_mutex_unlock(&g_node_table.lock);
-        
-        // If no master found in node table, use a default or configured value
-        if (!master_found) {
-            printf("[Backend] No master node found in registry. Using default.\n");
-            strcpy(master_ip, "127.0.0.1");  // Placeholder - should be configured
-        }
-        
-        // Create response message with master's IP
-        message_t *reply = malloc(sizeof(message_t) + 64);
-        if (!reply) continue;
-        
-        memset(reply, 0, sizeof(message_t) + 64);
-        strcpy(reply->type, BE_TYPE);
-        strcpy(reply->recv_type, message->recv_type);
-        sprintf(reply->data, "%s", master_ip);
-        reply->size = strlen(reply->data) + 1;
-        
-        printf("[Backend] Responding with master IP: %s to queue: %s\n", master_ip, message->recv_type);
-        
-        // Send reply back via the request's recv_type queue
-        map_entry * reply_mq = find_by_msg_type(message->recv_type);
-        if (reply_mq) {
-            queued_message reply_qmsg;
-            memset(&reply_qmsg, 0, sizeof(reply_qmsg));
-            reply_qmsg.mtype = 1L;
-            memcpy(reply_qmsg.data, reply, sizeof(message_t) + 64);
-            msgsnd(reply_mq->queue_id, &reply_qmsg, sizeof(reply_qmsg) - sizeof(long), 0);
-            printf("[Backend] Reply sent successfully\n");
-        } else {
-            printf("[Backend] Could not find reply queue: %s\n", message->recv_type);
-        }
-        
-        free(reply);
-    }
-    return NULL;
-}
-
 void print_machine_metrics(const MachineMetrics *m)
 {
     if (m == NULL) {
@@ -660,7 +582,6 @@ void* state_receiver_thread_run(void* arg) {
     char * mq_statecapture_init_str = create_mq(STATECAPTURE_INIT_TYPE, sizeof(queued_message));
     char * mq_statecapture_str = create_mq(STATECAPTURE_TYPE, sizeof(queued_message));    
     char * mq_hello_str = create_mq(HELLO_TYPE, sizeof(queued_message));
-    char * mq_backend_str = create_mq(BE_TYPE, sizeof(queued_message));
     char * mq_heartbeat_str = create_mq(HB_TYPE, sizeof(queued_message));
 
     if (mq_statecapture_init_str == NULL) {
@@ -671,7 +592,6 @@ void* state_receiver_thread_run(void* arg) {
     map_entry * statecapture_init_entry = find_by_msg_type(mq_statecapture_init_str);
     map_entry * statecapture_entry = find_by_msg_type(mq_statecapture_str);
     map_entry * hello_entry = find_by_msg_type(mq_hello_str);
-    map_entry * backend_entry = find_by_msg_type(mq_backend_str);
     map_entry * heartbeat_entry = find_by_msg_type(mq_heartbeat_str);
     
     if (!statecapture_init_entry) {
@@ -689,11 +609,6 @@ void* state_receiver_thread_run(void* arg) {
         return NULL;
     }
 
-    if (!backend_entry) {
-        fprintf(stderr, "[StateReceiver] BACKEND queue not created \n");
-        return NULL;
-    }
-
     if (!heartbeat_entry) {
         fprintf(stderr, "[StateReceiver] HEARTBEAT queue not created \n");
         return NULL;
@@ -703,7 +618,6 @@ void* state_receiver_thread_run(void* arg) {
     pthread_t statecapture_thread;
     pthread_t hello_thread;
     pthread_t get_xtics_thread;
-    pthread_t backend_thread;
     pthread_t heartbeat_thread;
     pthread_t heartbeat_monitor_thread;
     
@@ -711,7 +625,6 @@ void* state_receiver_thread_run(void* arg) {
     pthread_create(&statecapture_thread, NULL, statecapture_func, (void *)statecapture_entry);
     pthread_create(&hello_thread, NULL, hello_func, (void *)hello_entry);
     pthread_create(&get_xtics_thread, NULL, get_machine_xtics, NULL);
-    pthread_create(&backend_thread, NULL, backend_func, (void *)backend_entry);
     pthread_create(&heartbeat_thread, NULL, heartbeat_receiver_func, (void *)heartbeat_entry);
     
     // Start heartbeat monitor thread
