@@ -294,7 +294,11 @@ static void start_threads(void) {
       pthread_create(&agent.threads.master_thread, NULL, master_thread_start,
                      NULL);
       agent.threads.master_thread_active = 1;
+<<<<<<< Updated upstream
       printf("[THREAD] Master Execution thread started\n");
+=======
+      printf("[THREAD] Master Thread started\n");
+>>>>>>> Stashed changes
     }
     break;
 
@@ -324,12 +328,14 @@ static void stop_threads(void) {
     break;
   case ROLE_MASTER:
     if (agent.threads.master_thread_active) {
+      master_thread_stop();
       pthread_cancel(agent.threads.master_thread);
       pthread_join(agent.threads.master_thread, NULL);
       agent.threads.master_thread_active = 0;
-      printf("[THREAD] Master Execution thread stopped\n");
+      printf("[THREAD] Master Thread stopped\n");
     }
     break;
+
   default:
     printf("[THREAD] No role-specific threads to stop for role %d\n", agent.role);
     break;

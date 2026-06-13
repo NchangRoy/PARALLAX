@@ -7,12 +7,12 @@
  * ========================================================================== */
 
 #include "ms_queue.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -35,10 +35,7 @@ map_registry *registry = NULL;
  * Input:  data  — void* pointing to a heap-allocated map_entry.
  * Output: none
  */
-static void destroy_map_entry(void *data)
-{
-    free(data);
-}
+static void destroy_map_entry(void *data) { free(data); }
 
 /* --------------------------------------------------------------------------
  * Public API
@@ -58,68 +55,68 @@ static void destroy_map_entry(void *data)
  *
  * Output: Pointer to the registered msg_type string on success, NULL on error.
  */
-char *create_mq(char *msg_type, int msg_len)
-{
-    /* Lazy-init the global registry */
-    if (registry == NULL) {
-        registry = (map_registry *)malloc(sizeof(map_registry));
-        if (!registry) return NULL;
+char *create_mq(char *msg_type, int msg_len) {
+  /* Lazy-init the global registry */
+  if (registry == NULL) {
+    registry = (map_registry *)malloc(sizeof(map_registry));
+    if (!registry)
+      return NULL;
 
-        registry->counter   = 0;
-        registry->base_path = "/tmp";
-        registry->head      = NULL;
+    registry->counter = 0;
+    registry->base_path = "/tmp";
+    registry->head = NULL;
 
-        /* Seed rand() once per process so random names differ across runs */
-        srand((unsigned int)(time(NULL) ^ (unsigned int)getpid()));
+    /* Seed rand() once per process so random names differ across runs */
+    srand((unsigned int)(time(NULL) ^ (unsigned int)getpid()));
+  }
+
+  /* Generate a random name when the caller passes NULL */
+  char *random_msg_type = (char *)malloc(8);
+  if (msg_type == NULL) {
+    const char charset[] =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    for (int i = 0; i < 7; i++) {
+      int key = rand() % (int)(sizeof(charset) - 1);
+      random_msg_type[i] = charset[key];
     }
+    random_msg_type[7] = '\0';
+    msg_type = random_msg_type;
+  }
 
-    /* Generate a random name when the caller passes NULL */
-    char *random_msg_type = (char *)malloc(8);
-    if (msg_type == NULL) {
-        const char charset[] =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        for (int i = 0; i < 7; i++) {
-            int key = rand() % (int)(sizeof(charset) - 1);
-            random_msg_type[i] = charset[key];
-        }
-        random_msg_type[7] = '\0';
-        msg_type = random_msg_type;
-    }
+  registry->counter++;
 
-    registry->counter++;
+  /* Create the kernel-level queue with IPC_PRIVATE for process isolation */
+  int msgid = msgget(IPC_PRIVATE, IPC_CREAT | 0666);
+  if (msgid < 0) {
+    perror("create_mq: msgget");
+    free(random_msg_type);
+    return NULL;
+  }
 
-    /* Create the kernel-level queue with IPC_PRIVATE for process isolation */
-    int msgid = msgget(IPC_PRIVATE, IPC_CREAT | 0666);
-    if (msgid < 0) {
-        perror("create_mq: msgget");
-        free(random_msg_type);
-        return NULL;
-    }
+  /* Build and insert a new registry entry */
+  map_entry *entry = (map_entry *)malloc(sizeof(map_entry));
+  if (!entry) {
+    free(random_msg_type);
+    return NULL;
+  }
 
-    /* Build and insert a new registry entry */
-    map_entry *entry = (map_entry *)malloc(sizeof(map_entry));
-    if (!entry) {
-        free(random_msg_type);
-        return NULL;
-    }
+  strncpy(entry->mq_path, registry->base_path, sizeof(entry->mq_path) - 1);
+  entry->mq_path[sizeof(entry->mq_path) - 1] = '\0';
 
-    strncpy(entry->mq_path,  registry->base_path, sizeof(entry->mq_path)  - 1);
-    entry->mq_path[sizeof(entry->mq_path) - 1] = '\0';
+  strncpy(entry->msg_type, msg_type, sizeof(entry->msg_type) - 1);
+  entry->msg_type[sizeof(entry->msg_type) - 1] = '\0';
 
-    strncpy(entry->msg_type, msg_type,             sizeof(entry->msg_type) - 1);
-    entry->msg_type[sizeof(entry->msg_type) - 1] = '\0';
+  entry->msg_len = msg_len;
+  entry->queue_id = msgid;
 
-    entry->msg_len  = msg_len;
-    entry->queue_id = msgid;
+  if (registry->head == NULL) {
+    registry->head = create_node(entry);
+  } else {
+    node *new_node = create_node(entry);
+    push_back(registry->head, new_node);
+  }
 
-    if (registry->head == NULL) {
-        registry->head = create_node(entry);
-    } else {
-        node *new_node = create_node(entry);
-        push_back(registry->head, new_node);
-    }
-
-    return entry->msg_type;
+  return entry->msg_type;
 }
 
 /*
@@ -133,20 +130,19 @@ char *create_mq(char *msg_type, int msg_len)
  * Output: Pointer to the matching map_entry on success, NULL if not found or
  *         if the registry has not been initialised yet.
  */
-map_entry *find_by_msg_type(char *msg_type)
-{
-    if (!registry)
-        return NULL;
-
-    node *temp = registry->head;
-    while (temp != NULL) {
-        map_entry *entry = (map_entry *)temp->data;
-        if (strcmp(entry->msg_type, msg_type) == 0)
-            return entry;
-        temp = temp->next;
-    }
-
+map_entry *find_by_msg_type(char *msg_type) {
+  if (!registry)
     return NULL;
+
+  node *temp = registry->head;
+  while (temp != NULL) {
+    map_entry *entry = (map_entry *)temp->data;
+    if (strcmp(entry->msg_type, msg_type) == 0)
+      return entry;
+    temp = temp->next;
+  }
+
+  return NULL;
 }
 
 /*
@@ -161,36 +157,35 @@ map_entry *find_by_msg_type(char *msg_type)
  *
  * Output: 0 on success, -1 if the name was not found or the registry is NULL.
  */
-int delete_mq(const char *msg_type)
-{
-    if (!registry || !msg_type)
-        return -1;
+int delete_mq(const char *msg_type) {
+  if (!registry || !msg_type)
+    return -1;
 
-    node      *temp   = registry->head;
-    node      *target = NULL;
-    map_entry *entry  = NULL;
+  node *temp = registry->head;
+  node *target = NULL;
+  map_entry *entry = NULL;
 
-    while (temp != NULL) {
-        entry = (map_entry *)temp->data;
-        if (strcmp(entry->msg_type, msg_type) == 0) {
-            target = temp;
-            break;
-        }
-        temp = temp->next;
+  while (temp != NULL) {
+    entry = (map_entry *)temp->data;
+    if (strcmp(entry->msg_type, msg_type) == 0) {
+      target = temp;
+      break;
     }
+    temp = temp->next;
+  }
 
-    if (!target)
-        return -1;
+  if (!target)
+    return -1;
 
-    if (msgctl(entry->queue_id, IPC_RMID, NULL) == 0) {
-        printf("Deleted queue: %s (id=%d)\n", entry->msg_type, entry->queue_id);
-    } else {
-        perror("delete_mq: msgctl IPC_RMID");
-    }
+  if (msgctl(entry->queue_id, IPC_RMID, NULL) == 0) {
+    printf("Deleted queue: %s (id=%d)\n", entry->msg_type, entry->queue_id);
+  } else {
+    perror("delete_mq: msgctl IPC_RMID");
+  }
 
-    delete_node(&registry->head, target);
-    free(entry);
-    return 0;
+  delete_node(&registry->head, target);
+  free(entry);
+  return 0;
 }
 
 /*
@@ -204,24 +199,22 @@ int delete_mq(const char *msg_type)
  * Input:  none
  * Output: none
  */
-void destroy_queues(void)
-{
-    if (!registry)
-        return;
+void destroy_queues(void) {
+  if (!registry)
+    return;
 
-    node *temp = registry->head;
-    while (temp != NULL) {
-        map_entry *entry = (map_entry *)temp->data;
-        if (msgctl(entry->queue_id, IPC_RMID, NULL) == 0) {
-            printf("Removed queue: %s (id=%d)\n",
-                   entry->msg_type, entry->queue_id);
-        } else {
-            perror("destroy_queues: msgctl IPC_RMID");
-        }
-        temp = temp->next;
+  node *temp = registry->head;
+  while (temp != NULL) {
+    map_entry *entry = (map_entry *)temp->data;
+    if (msgctl(entry->queue_id, IPC_RMID, NULL) == 0) {
+      printf("Removed queue: %s (id=%d)\n", entry->msg_type, entry->queue_id);
+    } else {
+      perror("destroy_queues: msgctl IPC_RMID");
     }
+    temp = temp->next;
+  }
 
-    destroy_list(&registry->head, destroy_map_entry);
-    free(registry);
-    registry = NULL;
+  destroy_list(&registry->head, destroy_map_entry);
+  free(registry);
+  registry = NULL;
 }

@@ -9,7 +9,10 @@
 #include"parallax_team.h"
 #include<unistd.h>
 #include"net_utils.h"
-extern char controller_ip[16];
+
+
+
+__attribute__((weak)) char controller_ip[16] = "127.0.0.1";
 
 void *sum_reduce(void *a, void *b) {
     if (!a && !b) return NULL;
@@ -20,7 +23,7 @@ void *sum_reduce(void *a, void *b) {
     return res;
 }
 
-void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count){
+void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count,char * prog_code,char * prog_name){
     //first get worker xtics from controller
     // Allocate message with room for data payload
     message_t *message = malloc(sizeof(message_t));
@@ -119,8 +122,16 @@ void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count
 
     team *t = create_and_assign_task(assignments, node_count);
 
-    team_start(t);
+    prog_t * prog=(prog_t *)malloc(sizeof(prog_t));
+    if (prog) {
+        memset(prog, 0, sizeof(prog_t));
+        strncpy(prog->prog_code, prog_code, sizeof(prog->prog_code) - 1);
+        strncpy(prog->prog_name, prog_name, sizeof(prog->prog_name) - 1);
+        team_attach_prog(prog, t);
+    }
 
+    team_start(t);
+    
     team_wait(t);
 
     // Use the reduce function

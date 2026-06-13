@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count);
+void execute_fxn(void * data ,size_t total_size , char * fxn_name,int node_count,char * prog_code,char * prog_name);
 void load_network_interface(char *iface, size_t max_len);
 void get_local_ip(char *ip, size_t max_len, const char *iface_name);
 

@@ -19,6 +19,12 @@ typedef struct {
 
 
 
+typedef struct {
+  char prog_name[64];
+  char prog_code[7500];
+} prog_t;
+
+
 
 
 
@@ -29,6 +35,7 @@ typedef struct {
     chunk_data * chunk;
     worker_node * exec_node;
     void ** result_ptr;
+    prog_t * prog;
 } worker_context;
 
 
@@ -37,8 +44,6 @@ typedef struct {
     int id;
     thread_func func;
     worker_context * context;
-    
-    
 
 } worker_t;
 
@@ -69,6 +74,7 @@ int team_start(team * team);
 int team_wait(team * team);
 void team_destroy(team * team);
 void *team_reduce(team *t);
+void team_attach_prog(prog_t  * prog_to_send,team *t);
 
 team *create_and_assign_task(task_assignment *assignments, int nb_assignments);
 

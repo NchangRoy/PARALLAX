@@ -441,6 +441,7 @@ void * heartbeat_receiver_func(void * arg){
 
             // Le payload du network_agent est dans qmsg.data
             MachineHeartbeat *hb = (MachineHeartbeat *)qmsg.data;
+            update_heartbeat(hb);
             printf("[HEARTBEAT] Received heartbeat from %s\n", hb->uuid);
         }
         
