@@ -305,6 +305,7 @@ static void start_threads(void) {
 
   case ROLE_MASTER:
     if (!agent.threads.master_thread_active) {
+      worker_log_sender_start(controller_ip, get_agent_uuid());
       pthread_create(&agent.threads.master_thread, NULL, master_thread_start,
                      NULL);
       agent.threads.master_thread_active = 1;
