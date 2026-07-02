@@ -4,7 +4,7 @@
 /Worker_execution_Module
 /test
 parallax_agent
-
+backend_ui_parallax
 # Ignore auto-generated controller data files
 Controller/parallax_data/nodes/*.json
 Controller/parallax_data/metrics/*.csv
