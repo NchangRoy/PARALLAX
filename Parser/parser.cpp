@@ -206,7 +206,7 @@ public:
     if (!func)
       return;
 
-    int vcpus = 1;
+    int vcpus = 0; /* 0 = auto — master caps at PARALLAX_DEFAULT_NODE_CAP */
     std::string aggregator = "sum_reduce";
     bool has_annotation = false;
 
@@ -445,8 +445,8 @@ private:
   Rewriter &MyRewriter;
   PrintHandler printhandler;
   VarHandler varHandler;
-  FunctionHandler FunctionHandler;
-  CallExprHandler CallExprHandler;
+  FunctionHandler functionHandler;
+  CallExprHandler callExprHandler;
   MatchFinder FunctionMatcher;
   MatchFinder VariableMatcher;
   MatchFinder CallExprMatcher;
@@ -456,15 +456,15 @@ public:
       : MyRewriter(rewriter), MymetaData(metadata),
         printhandler(this->MyRewriter, this->MymetaData),
         varHandler(this->MyRewriter, this->MymetaData),
-        FunctionHandler(this->MyRewriter, this->MymetaData),
-        CallExprHandler(this->MyRewriter, this->MymetaData) {
+        functionHandler(this->MyRewriter, this->MymetaData),
+        callExprHandler(this->MyRewriter, this->MymetaData) {
 
     FunctionMatcher.addMatcher(functionDecl(isDefinition()).bind("func"),
                                &printhandler);
     VariableMatcher.addMatcher(varDecl().bind("var"), &varHandler);
     FunctionMatcher.addMatcher(functionDecl(isDefinition()).bind("func"),
-                               &FunctionHandler);
-    CallExprMatcher.addMatcher(callExpr().bind("call"), &CallExprHandler);
+                               &functionHandler);
+    CallExprMatcher.addMatcher(callExpr().bind("call"), &callExprHandler);
   }
 
   void HandleTranslationUnit(ASTContext &context) override {
