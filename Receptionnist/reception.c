@@ -18,6 +18,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -29,10 +30,60 @@ static ReceptionistState g_receptionist;
 #define ROLE_RECEPTIONIST 4
 #endif
 
+/* Must match CLUSTER_INTERNAL_KEY in backend_ui_parallax/.env */
+#define BACKEND_CLUSTER_KEY "internal-cluster-secret-key"
+
 static char pending_code[7500] = {0};
 static int pending_code_len = 0;
 static int has_pending_code = 0;
 static pthread_mutex_t pending_code_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* ── Callback registry ────────────────────────────────────────────────────
+   Populated when a submission carries __parallax_callback_host__/_port__
+   markers (injected by the Flask backend, see tasks.py:_with_callback_markers).
+   Consumed by log_receiver_thread once the program's PROG_LOG arrives, so the
+   backend can be told the program finished without having to poll /logs. */
+#define MAX_CALLBACKS 128
+typedef struct {
+    char prog_name[64];
+    char host[46];
+    int  port;
+    int  used;
+} callback_entry_t;
+static callback_entry_t g_callbacks[MAX_CALLBACKS];
+static int g_callbacks_next = 0;
+static pthread_mutex_t g_callbacks_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void callback_registry_add(const char *prog_name, const char *host, int port) {
+    pthread_mutex_lock(&g_callbacks_mutex);
+    int slot = g_callbacks_next;
+    g_callbacks_next = (g_callbacks_next + 1) % MAX_CALLBACKS;
+    strncpy(g_callbacks[slot].prog_name, prog_name, sizeof(g_callbacks[slot].prog_name) - 1);
+    g_callbacks[slot].prog_name[sizeof(g_callbacks[slot].prog_name) - 1] = '\0';
+    strncpy(g_callbacks[slot].host, host, sizeof(g_callbacks[slot].host) - 1);
+    g_callbacks[slot].host[sizeof(g_callbacks[slot].host) - 1] = '\0';
+    g_callbacks[slot].port = port;
+    g_callbacks[slot].used = 1;
+    pthread_mutex_unlock(&g_callbacks_mutex);
+}
+
+/* Finds and consumes (one-shot) the callback entry for prog_name. */
+static int callback_registry_take(const char *prog_name, char *host_out, size_t host_size, int *port_out) {
+    int found = 0;
+    pthread_mutex_lock(&g_callbacks_mutex);
+    for (int i = 0; i < MAX_CALLBACKS; i++) {
+        if (g_callbacks[i].used && strcmp(g_callbacks[i].prog_name, prog_name) == 0) {
+            strncpy(host_out, g_callbacks[i].host, host_size - 1);
+            host_out[host_size - 1] = '\0';
+            *port_out = g_callbacks[i].port;
+            g_callbacks[i].used = 0;
+            found = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_callbacks_mutex);
+    return found;
+}
 
 #define HTTP_NODES_TYPE    "HTTP_NODES"
 #define HTTP_NODELOG_TYPE  "HTTP_NODELOG"
@@ -61,12 +112,33 @@ static void extract_prog_name(const char *code, char *out, size_t out_size) {
     out[out_size - 1] = '\0';
 }
 
+/* Generic `<marker>"value"` extractor. Returns 1 and copies value into out if found. */
+static int extract_marker(const char *code, const char *marker, char *out, size_t out_size) {
+    const char *p = strstr(code, marker);
+    if (!p) return 0;
+    p += strlen(marker);
+    const char *end = strchr(p, '"');
+    if (!end) return 0;
+    size_t len = (size_t)(end - p);
+    if (len >= out_size) len = out_size - 1;
+    strncpy(out, p, len);
+    out[len] = '\0';
+    return 1;
+}
+
 static void forward_code_to_master(void) {
     if (!has_pending_code) return;
     if (g_receptionist.master_port == 0 || strcmp(g_receptionist.master_ip, "NONE") == 0) return;
 
     char prog_name[64];
     extract_prog_name(pending_code, prog_name, sizeof(prog_name));
+
+    char cb_host[46] = {0};
+    char cb_port_str[8] = {0};
+    if (extract_marker(pending_code, "__parallax_callback_host__ = \"", cb_host, sizeof(cb_host)) &&
+        extract_marker(pending_code, "__parallax_callback_port__ = \"", cb_port_str, sizeof(cb_port_str))) {
+        callback_registry_add(prog_name, cb_host, atoi(cb_port_str));
+    }
 
     printf("[RECEPTIONIST] Forwarding '%s' to master at %s:%d\n",
            prog_name, g_receptionist.master_ip, g_receptionist.master_port);
@@ -620,6 +692,138 @@ static int discover_controller(void) {
 //  PUBLIC API
 // ═══════════════════════════════════════════════════════════════════════════
 
+/* Escapes `in` (in_len bytes, not necessarily NUL-terminated) as a JSON string
+   value into `out` (out_size includes room for the NUL terminator). */
+static void json_escape(const char *in, size_t in_len, char *out, size_t out_size) {
+    size_t o = 0;
+    for (size_t i = 0; i < in_len && o + 6 < out_size; i++) {
+        unsigned char c = (unsigned char)in[i];
+        switch (c) {
+            case '"':  out[o++] = '\\'; out[o++] = '"';  break;
+            case '\\': out[o++] = '\\'; out[o++] = '\\'; break;
+            case '\n': out[o++] = '\\'; out[o++] = 'n';  break;
+            case '\r': out[o++] = '\\'; out[o++] = 'r';  break;
+            case '\t': out[o++] = '\\'; out[o++] = 't';  break;
+            default:
+                if (c >= 0x20) out[o++] = (char)c;
+        }
+    }
+    out[o] = '\0';
+}
+
+/* Detects and strips a leading `__PARALLAX_STATUS__=OK\n` /
+   `__PARALLAX_STATUS__=FAILED\n` marker from a PROG_LOG payload (see
+   send_prog_log in Execution_Master/utils/master_thread.c). log_content is
+   not guaranteed NUL-terminated, so this works off log_size, not strstr.
+   Returns 1 if the program failed, 0 otherwise (including when no marker is
+   present at all — e.g. a log shipped by an older master build — so the
+   default stays "success" for backward compatibility). */
+static int strip_status_marker(const char *log_content, uint32_t log_size,
+                                const char **content_out, uint32_t *len_out) {
+    static const char OK_MARKER[]     = "__PARALLAX_STATUS__=OK\n";
+    static const char FAILED_MARKER[] = "__PARALLAX_STATUS__=FAILED\n";
+    size_t ok_len = sizeof(OK_MARKER) - 1;
+    size_t failed_len = sizeof(FAILED_MARKER) - 1;
+
+    if (log_size >= ok_len && memcmp(log_content, OK_MARKER, ok_len) == 0) {
+        *content_out = log_content + ok_len;
+        *len_out = log_size - (uint32_t)ok_len;
+        return 0;
+    }
+    if (log_size >= failed_len && memcmp(log_content, FAILED_MARKER, failed_len) == 0) {
+        *content_out = log_content + failed_len;
+        *len_out = log_size - (uint32_t)failed_len;
+        return 1;
+    }
+    *content_out = log_content;
+    *len_out = log_size;
+    return 0;
+}
+
+/* Pushes the result of a finished program to the backend that submitted it
+   (POST /api/cluster/programme-result). Best-effort: logs on failure, never
+   blocks the caller for more than a few seconds (connect/send/recv timeouts). */
+static void send_result_callback(const char *host, int port, const char *prog_name,
+                                  const char *log_content, uint32_t log_size) {
+    /* prog_name is "<programme_uuid>.c" (see extract_prog_name) — strip the
+       ".c" back off to recover the UUID Flask knows as Programme.id. */
+    char programme_id[64];
+    strncpy(programme_id, prog_name, sizeof(programme_id) - 1);
+    programme_id[sizeof(programme_id) - 1] = '\0';
+    size_t plen = strlen(programme_id);
+    if (plen > 2 && strcmp(programme_id + plen - 2, ".c") == 0) {
+        programme_id[plen - 2] = '\0';
+    }
+
+    const char *stripped_content;
+    uint32_t stripped_len;
+    int failed = strip_status_marker(log_content, log_size, &stripped_content, &stripped_len);
+
+    size_t escaped_cap = (size_t)stripped_len * 2 + 16;
+    char *escaped_log = malloc(escaped_cap);
+    if (!escaped_log) return;
+    json_escape(stripped_content, stripped_len, escaped_log, escaped_cap);
+
+    char *body = malloc(strlen(escaped_log) + 256);
+    if (!body) { free(escaped_log); return; }
+    int body_len = sprintf(body,
+        "{\"programme_id\":\"%s\",\"status\":\"%s\",\"log\":\"%s\"}",
+        programme_id, failed ? "echec" : "termine", escaped_log);
+    free(escaped_log);
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) { free(body); return; }
+
+    struct timeval tv = { .tv_sec = 5, .tv_usec = 0 };
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons((uint16_t)port);
+    if (inet_pton(AF_INET, host, &addr.sin_addr) != 1 ||
+        connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        printf("[RECEPTIONIST] Callback to %s:%d for '%s' failed (connect)\n",
+               host, port, programme_id);
+        close(sockfd);
+        free(body);
+        return;
+    }
+
+    char *req = malloc((size_t)body_len + 512);
+    if (!req) { close(sockfd); free(body); return; }
+    int req_len = sprintf(req,
+        "POST /api/cluster/programme-result HTTP/1.1\r\n"
+        "Host: %s:%d\r\n"
+        "Content-Type: application/json\r\n"
+        "X-Cluster-Key: %s\r\n"
+        "Content-Length: %d\r\n"
+        "Connection: close\r\n"
+        "\r\n%s",
+        host, port, BACKEND_CLUSTER_KEY, body_len, body);
+    free(body);
+
+    ssize_t sent = send(sockfd, req, (size_t)req_len, 0);
+    free(req);
+    if (sent < 0) {
+        printf("[RECEPTIONIST] Callback to %s:%d for '%s' failed (send)\n",
+               host, port, programme_id);
+        close(sockfd);
+        return;
+    }
+
+    char resp[256] = {0};
+    ssize_t n = recv(sockfd, resp, sizeof(resp) - 1, 0);
+    if (n > 0) {
+        printf("[RECEPTIONIST] Callback to %s:%d for '%s' acked\n", host, port, programme_id);
+    } else {
+        printf("[RECEPTIONIST] Callback to %s:%d for '%s' sent, no response\n",
+               host, port, programme_id);
+    }
+    close(sockfd);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  THREAD 3: EXECUTION LOG RECEIVER
 //  Reads PROG_LOG messages from the IPC queue and writes each to a file.
@@ -651,15 +855,51 @@ void *log_receiver_thread(void *arg) {
         char log_path[256];
         snprintf(log_path, sizeof(log_path), "logs/%s.log", log->prog_name);
 
+        const char *stripped_content;
+        uint32_t stripped_len;
+        int failed = strip_status_marker(log->log_content, log->log_size,
+                                          &stripped_content, &stripped_len);
+
         FILE *f = fopen(log_path, "w");
         if (f) {
-            fwrite(log->log_content, 1, log->log_size, f);
+            fwrite(stripped_content, 1, stripped_len, f);
             fclose(f);
-            printf("[RECEPTIONIST] Log received for '%s' (%u bytes) -> %s\n",
-                   log->prog_name, log->log_size, log_path);
+            printf("[RECEPTIONIST] Log received for '%s' (%u bytes, %s) -> %s\n",
+                   log->prog_name, stripped_len, failed ? "FAILED" : "OK", log_path);
         } else {
             perror("[RECEPTIONIST] fopen log file");
         }
+
+        char cb_host[46];
+        int cb_port;
+        if (callback_registry_take(log->prog_name, cb_host, sizeof(cb_host), &cb_port)) {
+            send_result_callback(cb_host, cb_port, log->prog_name,
+                                  log->log_content, log->log_size);
+        }
+    }
+    return NULL;
+}
+
+static void *receptionist_heartbeat_thread(void *arg) {
+    (void)arg;
+    while (atomic_load(&receptionist_running)) {
+        MachineHeartbeat hb;
+        memset(&hb, 0, sizeof(hb));
+        strncpy(hb.uuid, g_receptionist.uuid, sizeof(hb.uuid) - 1);
+        hb.type = MSG_HEARTBEAT;
+        hb.role = ROLE_RECEPTIONIST;
+
+        message_t *pkt = malloc(sizeof(message_t) + sizeof(MachineHeartbeat));
+        if (pkt) {
+            memset(pkt, 0, sizeof(message_t) + sizeof(MachineHeartbeat));
+            pkt->mq_type = 1;
+            strcpy(pkt->type, HB_TYPE);
+            pkt->size = sizeof(MachineHeartbeat);
+            memcpy(pkt->data, &hb, sizeof(MachineHeartbeat));
+            send_msg(g_receptionist.controller_ip, 9000, "receptionist_out", pkt);
+            free(pkt);
+        }
+        sleep(2);
     }
     return NULL;
 }
@@ -686,6 +926,10 @@ void receptionist_init(void) {
     pthread_t log_thread;
     pthread_create(&log_thread, NULL, log_receiver_thread, NULL);
     pthread_detach(log_thread);
+
+    pthread_t hb_thread;
+    pthread_create(&hb_thread, NULL, receptionist_heartbeat_thread, NULL);
+    pthread_detach(hb_thread);
 
     printf("[RECEPTIONIST] Started\n");
 }
