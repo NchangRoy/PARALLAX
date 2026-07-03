@@ -3,6 +3,7 @@
 #include "socket.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -96,6 +97,11 @@ void *udp_socket_listener(void *args) {
     perror("udp socket");
     return NULL;
   }
+
+  /* Lives for the agent's whole run — without FD_CLOEXEC it leaks into every
+     program the master launches via system() (see master_thread.c), letting
+     a stale child steal packets meant for this listener. */
+  fcntl(sockfd, F_SETFD, FD_CLOEXEC);
 
   int opt = 1;
   setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -398,6 +404,10 @@ void *network_thread_run(void *args) {
   return NULL;
 }
 
+int network_agent_get_port(void) {
+  return agent_port;
+}
+
 /*
  * Arrete l'agent reseau.
  * La fonction signale l'arret aux threads, debloque le listener, attend les
@@ -506,4 +516,11 @@ void send_msg(char *Ip, int port, char *queue_name, message_t *message) {
  */
 void send_broadcast(int port, message_t *message) {
   send_broadcast_message(port, message);
+}
+
+/*
+ * Wrapper to send a broadcast message on a single named interface
+ */
+void send_broadcast_iface(int port, message_t *message, const char *iface_name) {
+  send_broadcast_message_iface(port, message, iface_name);
 }

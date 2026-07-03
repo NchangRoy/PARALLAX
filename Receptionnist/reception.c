@@ -24,6 +24,7 @@
 
 // Forward declaration
 void receptionist_handle_master_ip_update(MasterIPResponse* response);
+static void generate_uuid(char *uuid);
 static ReceptionistState g_receptionist;
 
 #ifndef ROLE_RECEPTIONIST
@@ -108,8 +109,15 @@ static void extract_prog_name(const char *code, char *out, size_t out_size) {
             return;
         }
     }
-    strncpy(out, "submitted_prog.c", out_size - 1);
-    out[out_size - 1] = '\0';
+    /* No name marker in the source: fall back to a unique name instead of a
+     * shared literal. A fixed fallback ("submitted_prog.c") makes concurrent
+     * or back-to-back submissions race on the exact same file paths
+     * (source, *_parsed.c, *.compile_err, *.log), corrupting each other's
+     * output — this is what produced the duplicate __parallax_prog_code__
+     * definitions seen in submitted_prog.c_parsed.c. */
+    char uuid[37];
+    generate_uuid(uuid);
+    snprintf(out, out_size, "%s.c", uuid);
 }
 
 /* Generic `<marker>"value"` extractor. Returns 1 and copies value into out if found. */

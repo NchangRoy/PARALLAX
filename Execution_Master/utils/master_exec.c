@@ -30,7 +30,7 @@ __attribute__((weak)) void *matcher(char *name) {
 void execute_fxn(ParallaxParam *params, int param_count, char *fxn_name,
                  ParallaxExecutionCtx *ctx, const char *prog_code, const char *prog_name) {
 
-  int node_count = ctx ? ctx->expected_node_count : 1;
+  int node_count = ctx ? ctx->expected_node_count : 0;
 
   // Dynamically create a unique queue to receive the NODES response
   char *temp_mq = create_mq(NULL, 0);
@@ -93,14 +93,34 @@ void execute_fxn(ParallaxParam *params, int param_count, char *fxn_name,
            "task.\n");
     return;
   }
-  printf("[DATA] received %d nodes\n", actual_node_count);
-  for (int i = 0; i < actual_node_count; i++) {
-    printf("Node %d: %s\n", i, metrics[i].uuid);
+  printf("[MasterExec] %d worker(s) available\n", actual_node_count);
+
+  /* Sort available nodes by score descending (best first) */
+  for (int i = 1; i < actual_node_count; i++) {
+    MachineMetrics tmp = metrics[i];
+    int j = i - 1;
+    while (j >= 0 && metrics[j].score < tmp.score) {
+      metrics[j + 1] = metrics[j];
+      j--;
+    }
+    metrics[j + 1] = tmp;
   }
 
-  // Use the actual number of nodes instead of the hardcoded request
-  node_count =
-      (actual_node_count < node_count) ? actual_node_count : node_count;
+  /* Resolve final node count */
+  if (node_count == 0) {
+    /* Auto mode: cap at PARALLAX_DEFAULT_NODE_CAP */
+    node_count = (actual_node_count < PARALLAX_DEFAULT_NODE_CAP)
+               ? actual_node_count : PARALLAX_DEFAULT_NODE_CAP;
+    printf("[MasterExec] Auto node selection: using %d node(s) (cap=%d, available=%d)\n",
+           node_count, PARALLAX_DEFAULT_NODE_CAP, actual_node_count);
+  } else if (node_count > actual_node_count) {
+    printf("[MasterExec] WARNING: requested %d node(s) but only %d available — proceeding with %d\n",
+           node_count, actual_node_count, actual_node_count);
+    node_count = actual_node_count;
+  } else {
+    printf("[MasterExec] Using top %d of %d available node(s) (by score)\n",
+           node_count, actual_node_count);
+  }
 
   /* ── create task assignments using the structured params ── */
   task_assignment *assignments =

@@ -13,7 +13,7 @@ static const char *__parallax_prog_name__ = "submit_annotated";
 // Custom aggregator function
 void *my_aggregator(void *a, void *b) {
   if (!a && !b)
-    return NULL;
+    return NULL
   long long val_a = a ? atoll((char *)a) : 0;
   long long val_b = b ? atoll((char *)b) : 0;
   char *res = malloc(64);

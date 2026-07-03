@@ -40,6 +40,7 @@
 #define MASTER_IP "127.0.0.1"
 #define MASTER_PORT 9001
 #define MAX_PROGRAMS 100
+#define MAX_LOG_FILE_BYTES (512 * 1024)  /* rotate at 512 KB, keep last half */
 
 /* --------------------------------------------------------------------------
  * Types
@@ -350,6 +351,26 @@ static char g_ctrl_ip[16]         = {0};
 static char g_worker_uuid[37]     = {0};
 static volatile int log_sender_on = 0;
 
+/* Truncate log to last half when it exceeds MAX_LOG_FILE_BYTES */
+static void rotate_log_if_needed(void) {
+    struct stat st;
+    if (stat(g_log_path, &st) != 0 || st.st_size <= MAX_LOG_FILE_BYTES) return;
+
+    size_t keep = MAX_LOG_FILE_BYTES / 2;
+    char *buf = malloc(keep);
+    if (!buf) return;
+
+    FILE *f = fopen(g_log_path, "r");
+    if (!f) { free(buf); return; }
+    fseek(f, -(long)keep, SEEK_END);
+    size_t n = fread(buf, 1, keep, f);
+    fclose(f);
+
+    f = fopen(g_log_path, "w");
+    if (f) { fwrite(buf, 1, n, f); fclose(f); }
+    free(buf);
+}
+
 static void *log_sender_thread(void *arg) {
     (void)arg;
     while (log_sender_on) {
@@ -381,6 +402,8 @@ static void *log_sender_thread(void *arg) {
         memcpy(pkt->data, &snap, sizeof(node_log_t));
         send_msg(g_ctrl_ip, 9000, "outgoing", pkt);
         free(pkt);
+
+        rotate_log_if_needed();
     }
     return NULL;
 }

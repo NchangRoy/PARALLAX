@@ -30,5 +30,6 @@ connection *create_listener(char *Ip, int port, int backlog);
 connection *create_connection(char *Ip, int port);
 int send_message(connection *connection, message_t *message);
 int send_broadcast_message(int port, message_t *message);
+int send_broadcast_message_iface(int port, message_t *message, const char *iface_name);
 
 #endif

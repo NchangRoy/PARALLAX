@@ -7,6 +7,7 @@
  * ========================================================================== */
 
 #include "ms_queue.h"
+#include "network_agent.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +89,28 @@ char *create_mq(char *msg_type, int msg_len) {
 
   registry->counter++;
 
-  /* Create the kernel-level queue using a stable key hashed from msg_type */
+  /*
+   * Create the kernel-level queue using a key hashed from msg_type, salted
+   * with our own agent port (9000 for master/worker/controller, 9008 for
+   * receptionist, ...).
+   *
+   * This has to be a *port* salt, not a pid salt: the reply channel between
+   * the persistent master agent process and the short-lived program it
+   * forks via system() to run a submission (see execute_fxn in
+   * master_exec.c, and get_or_create_mq in network_agent.c which re-derives
+   * the same key from the plain string once the name comes back over the
+   * network as a reply's `type` field) needs both processes to land on the
+   * identical key despite having different pids — and they do, since the
+   * forked child never calls network_thread_run and so keeps agent_port's
+   * default of 9000, matching its parent.
+   *
+   * What this salt actually guards against is two *different* agent roles
+   * sharing one host and both using the same fixed logical name (e.g.
+   * "HELLO_TYPE") — without it they'd hash to the identical kernel queue
+   * and race to steal each other's controller replies. Roles that listen on
+   * different ports (like receptionist's 9008 vs the master's 9000) end up
+   * on different keys and stop colliding.
+   */
   key_t key = IPC_PRIVATE;
   if (msg_type != NULL) {
     unsigned long hash = 5381;
@@ -97,6 +119,7 @@ char *create_mq(char *msg_type, int msg_len) {
     while ((c = (unsigned char)*temp++)) {
       hash = ((hash << 5) + hash) + c;
     }
+    hash = ((hash << 5) + hash) + (unsigned long)network_agent_get_port();
     key = (key_t)(hash & 0x7FFFFFFF);
   }
 

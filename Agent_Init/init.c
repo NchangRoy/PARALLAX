@@ -205,9 +205,10 @@ static void send_hello(void) {
       pkt->size = sizeof(MachineMetrics);
       memcpy(pkt->data, &msg, sizeof(MachineMetrics));
 
-      send_broadcast(9001, pkt);
+      send_broadcast_iface(9001, pkt, msg.network_iface);
       free(pkt);
-      printf("[INIT] HELLO sent: uuid=%s\n", agent.uuid);
+      printf("[INIT] HELLO sent: uuid=%s on interface %s\n", agent.uuid,
+             msg.network_iface);
     }
 
     // Wait up to 5 seconds for a reply

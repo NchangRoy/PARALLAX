@@ -4,6 +4,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 
@@ -69,6 +70,13 @@ connection *create_listener(char *Ip, int port, int backlog)
         free(conn);
         return NULL;
     }
+
+    /* This listener stays open for the agent's entire lifetime. Without
+       FD_CLOEXEC, every program the master launches via system() (see
+       master_thread.c) inherits this fd and can independently accept()
+       connections meant for the master, silently stealing worker responses
+       and making execute_fxn hang forever waiting for them. */
+    fcntl(conn->sockfd, F_SETFD, FD_CLOEXEC);
 
     int opt = 1;
     setsockopt(conn->sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -138,8 +146,14 @@ int send_message(connection *connection, message_t *message)
 
 /*
  * Envoie un message de broadcast UDP sur le port donne.
+ *
+ * iface_name == NULL (or empty) broadcasts on every up, broadcast-capable
+ * interface. Otherwise, only the named interface is used — this is what
+ * lets the agent honor the "interface=" setting from parallax.conf instead
+ * of blasting the HELLO on every interface on the box (docker/br-* bridges
+ * included).
  */
-int send_broadcast_message(int port, message_t *message)
+int send_broadcast_message_iface(int port, message_t *message, const char *iface_name)
 {
     if (!message) return -1;
 
@@ -165,12 +179,14 @@ int send_broadcast_message(int port, message_t *message)
 
     size_t total_size = sizeof(message_t) + message->size;
     int success = 0;
+    int want_specific = iface_name && iface_name[0] != '\0';
 
     for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == NULL) continue;
         if (ifa->ifa_addr->sa_family != AF_INET) continue;
         if (!(ifa->ifa_flags & IFF_BROADCAST)) continue;
         if (!(ifa->ifa_flags & IFF_UP)) continue;
+        if (want_specific && strcmp(ifa->ifa_name, iface_name) != 0) continue;
 
         struct sockaddr_in broadcastAddr;
         memcpy(&broadcastAddr, ifa->ifa_broadaddr, sizeof(struct sockaddr_in));
@@ -188,9 +204,17 @@ int send_broadcast_message(int port, message_t *message)
     close(sockfd);
 
     if (!success) {
-        fprintf(stderr, "Failed to broadcast on any active interface\n");
+        fprintf(stderr, want_specific
+                ? "Failed to broadcast on interface '%s'\n"
+                : "Failed to broadcast on any active interface\n",
+                iface_name);
         return -1;
     }
 
     return 0;
+}
+
+int send_broadcast_message(int port, message_t *message)
+{
+    return send_broadcast_message_iface(port, message, NULL);
 }

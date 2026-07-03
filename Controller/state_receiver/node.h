@@ -42,11 +42,14 @@ typedef struct {
     float cpu_usage;
     float ram_usage;
     long  ram_used_mb;
+    float mem_available_mb;
     float disk_usage;
     long  disk_used_mb;
     int   queue_len;
     float score;
     float load_avg[3];
+    float network_bandwidth_mbps;
+    int   is_overloaded;
 } NodeMetrics;
 
 // ─── Représentation complète d'un nœud ───────────────────────────────────────

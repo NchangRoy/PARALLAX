@@ -387,6 +387,64 @@ static void update_heartbeat(MachineHeartbeat* hb, const char* sender_ip, int se
     pthread_mutex_unlock(&g_node_table.lock);
 }
 
+/*
+ * Recomputes scores for all nodes using the cluster-relative formula.
+ * C^cpu = cores * threads * freq * (1 - cpu%/100) * 1/(1 + load1m)
+ * C^ram = mem_available_mb
+ * C^net = network_bandwidth_mbps
+ * C^queue = 1 / (1 + queue_len)
+ * score = 0 if overloaded, else α*norm_cpu + β*norm_ram + γ*norm_net + δ*queue
+ * where norm_X = X / max_X across all active nodes  (α=0.5 β=0.3 γ=0.1 δ=0.1)
+ */
+static void recompute_all_scores(void) {
+    pthread_mutex_lock(&g_node_table.lock);
+
+    float max_cpu = 0.0f, max_ram = 0.0f, max_net = 0.0f;
+
+    for (NodeInfo *n = g_node_table.head; n; n = n->next) {
+        if (n->status == NODE_EN_PANNE) continue;
+
+        float c_cpu = n->hardware.cpu_cores
+                    * n->hardware.cpu_threads_per_core
+                    * n->hardware.cpu_freq_mhz
+                    * (1.0f - n->metrics.cpu_usage / 100.0f)
+                    * (1.0f / (1.0f + n->metrics.load_avg[0]));
+        float c_ram = n->metrics.mem_available_mb;
+        float c_net = n->metrics.network_bandwidth_mbps;
+
+        if (c_cpu > max_cpu) max_cpu = c_cpu;
+        if (c_ram > max_ram) max_ram = c_ram;
+        if (c_net > max_net) max_net = c_net;
+    }
+
+    for (NodeInfo *n = g_node_table.head; n; n = n->next) {
+        if (n->metrics.is_overloaded) {
+            n->metrics.score = 0.0f;
+            continue;
+        }
+
+        float c_cpu = n->hardware.cpu_cores
+                    * n->hardware.cpu_threads_per_core
+                    * n->hardware.cpu_freq_mhz
+                    * (1.0f - n->metrics.cpu_usage / 100.0f)
+                    * (1.0f / (1.0f + n->metrics.load_avg[0]));
+        float c_ram = n->metrics.mem_available_mb;
+        float c_net = n->metrics.network_bandwidth_mbps;
+        float c_queue = 1.0f / (1.0f + (float)n->metrics.queue_len);
+
+        float norm_cpu   = (max_cpu > 0.0f) ? c_cpu / max_cpu : 0.0f;
+        float norm_ram   = (max_ram > 0.0f) ? c_ram / max_ram : 0.0f;
+        float norm_net   = (max_net > 0.0f) ? c_net / max_net : 0.0f;
+
+        n->metrics.score = 0.5f * norm_cpu
+                         + 0.3f * norm_ram
+                         + 0.1f * norm_net
+                         + 0.1f * c_queue;
+    }
+
+    pthread_mutex_unlock(&g_node_table.lock);
+}
+
 /**
  * Met à jour les métriques d'un nœud lors de la réception d'un MSG_STATECAPTURE.
  */
@@ -413,22 +471,25 @@ static void update_metrics(MachineMetrics* msg) {
     // Mise à jour de l'état du noeud
     node->last_heartbeat       = time(NULL);
     node->role                 = msg->role;  // Update role from metrics
-    node->metrics.cpu_usage    = msg->cpu_usage;
-    node->metrics.ram_usage    = msg->mem_usage;
-    node->metrics.ram_used_mb  = msg->mem_used_mb;
-    node->metrics.disk_usage   = msg->disk_usage;
-    node->metrics.disk_used_mb = msg->disk_used_mb;
-    node->metrics.queue_len    = msg->queue_len;
-    node->metrics.score        = msg->score;
-    node->metrics.load_avg[0]  = msg->load_avg[0];
-    node->metrics.load_avg[1]  = msg->load_avg[1];
-    node->metrics.load_avg[2]  = msg->load_avg[2];
+    node->metrics.cpu_usage              = msg->cpu_usage;
+    node->metrics.ram_usage              = msg->mem_usage;
+    node->metrics.ram_used_mb            = msg->mem_used_mb;
+    node->metrics.mem_available_mb       = msg->mem_available_mb;
+    node->metrics.disk_usage             = msg->disk_usage;
+    node->metrics.disk_used_mb           = msg->disk_used_mb;
+    node->metrics.queue_len              = msg->queue_len;
+    node->metrics.load_avg[0]            = msg->load_avg[0];
+    node->metrics.load_avg[1]            = msg->load_avg[1];
+    node->metrics.load_avg[2]            = msg->load_avg[2];
+    node->metrics.network_bandwidth_mbps = msg->network_bandwidth_mbps;
+    node->metrics.is_overloaded          = msg->is_overloaded;
 
     // On marque simplement le nœud comme actif puisqu'on a reçu un heartbeat
     // (La détection précise de surcharge/panne sera gérée par un autre module)
     node->status = NODE_ACTIF;
 
     pthread_mutex_unlock(&g_node_table.lock);
+    recompute_all_scores();
 }
 
 /**

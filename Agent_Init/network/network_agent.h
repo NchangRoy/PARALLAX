@@ -34,7 +34,14 @@ typedef struct {
 
 void *network_thread_run(void *args);
 void network_stop();
+/* Port this process's network agent is bound to (9000 for master/worker/
+   controller, 9008 for receptionist, ...) — defaults to 9000 until
+   network_thread_run sets it from its config. Used by ms_queue.c to isolate
+   fixed queue names (e.g. "HELLO_TYPE") between different agent roles
+   sharing one host. */
+int network_agent_get_port(void);
 void send_msg(char *Ip, int port, char *queue_name, message_t *message);
 void send_broadcast(int port, message_t *message);
+void send_broadcast_iface(int port, message_t *message, const char *iface_name);
 
 #endif

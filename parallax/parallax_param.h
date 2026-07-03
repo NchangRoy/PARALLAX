@@ -27,9 +27,12 @@ typedef struct {
     char                type_name[64];  /* C type string, e.g. "int *" or "int" */
 } ParallaxParam;
 
+/* Default node cap when user does not specify a node count (0 = auto) */
+#define PARALLAX_DEFAULT_NODE_CAP 8
+
 /* Execution context containing metadata for execution */
 typedef struct {
-    int expected_node_count;
+    int expected_node_count;  /* 0 = auto (capped at PARALLAX_DEFAULT_NODE_CAP) */
     char aggregator_name[64];
 } ParallaxExecutionCtx;
 
