@@ -17,20 +17,26 @@ void barrier_wait(barrier_t * barrier){
     int count = atomic_fetch_add(&barrier->count,1);
     count++;
     if(count == barrier->total){
-        
+
         //reset count
         atomic_store(&barrier->count,0);
         //increase the generation count
         atomic_fetch_add(&barrier->generation,1);
-        //we wake up threads
-        futex_wake(&barrier->count,barrier->total);
+        //we wake up threads waiting on the generation change
+        futex_wake(&barrier->generation,barrier->total);
 
     }
     else{
-        //cause thread to sleep if the generation has not changed
+        //cause thread to sleep if the generation has not changed.
+        //Must wait on `generation` itself (not `count`): FUTEX_WAIT only
+        //blocks if *addr still equals the expected value at the moment of
+        //the syscall. Waiting on &count while comparing against `generation`
+        //compares unrelated values, so the check almost always fails and
+        //the call returns immediately instead of sleeping - turning this
+        //into a busy-spin instead of a real wait.
         while( atomic_load(&barrier->generation) ==generation){
 
-            futex_wait(&barrier->count,generation);
+            futex_wait(&barrier->generation,generation);
         }
     }
 

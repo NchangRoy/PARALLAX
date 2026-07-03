@@ -1,0 +1,7 @@
+./progs/5219a94d-f2c7-47e0-89ca-989eeb70c6ab.c_parsed.c:32:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   32 | void *sum_array(void *data, size_t total_size) {
+      | ^~~~
+./progs/5219a94d-f2c7-47e0-89ca-989eeb70c6ab.c_parsed.c:32:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+/usr/bin/ld: /tmp/cceHJJLE.o: in function `sum_reduce':
+master_exec.c:(.text+0x98): multiple definition of `sum_reduce'; /tmp/cc3ZUtDk.o:5219a94d-f2c7-47e0-89ca-989eeb70c6ab.c_parsed.c:(.text+0x0): first defined here
+collect2: error: ld returned 1 exit status

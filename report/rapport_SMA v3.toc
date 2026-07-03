@@ -1,0 +1,68 @@
+\babel@toc {french}{}\relax 
+\contentsline {chapter}{Résumé}{1}{chapter*.1}%
+\contentsline {chapter}{Abstract}{2}{chapter*.2}%
+\contentsline {chapter}{Sigles et Abréviations}{6}{chapter*.5}%
+\contentsline {chapter}{Glossaire}{7}{chapter*.6}%
+\contentsline {chapter}{Liste des Figures}{8}{chapter*.6}%
+\contentsline {chapter}{Liste des Tableaux}{10}{chapter*.7}%
+\contentsline {chapter}{\numberline {1}Généralités et État de l'art}{12}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Généralités}{12}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}Concepts de base}{12}{subsection.1.1.1}%
+\contentsline {section}{\numberline {1.2}État de l'art}{14}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}Architectures centralisées}{14}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}Architectures hiérarchiques}{14}{subsection.1.2.2}%
+\contentsline {subsection}{\numberline {1.2.3}Approches orientées systèmes multi-agents}{15}{subsection.1.2.3}%
+\contentsline {subsection}{\numberline {1.2.4}Bilan comparatif}{15}{subsection.1.2.4}%
+\contentsline {subsection}{\numberline {1.2.5}Positionnement}{15}{subsection.1.2.5}%
+\contentsline {chapter}{\numberline {2}Analyse et conception}{17}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Analyse}{17}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Fonctionnalités et exigences}{17}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Diagramme de cas d'utilisation}{18}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}Identification des agents}{23}{subsection.2.1.3}%
+\contentsline {subsection}{\numberline {2.1.4}Identification des rôles}{24}{subsection.2.1.4}%
+\contentsline {subsection}{\numberline {2.1.5}Identification du SMA}{24}{subsection.2.1.5}%
+\contentsline {subsubsection}{Organisation}{24}{subsection.2.1.5}%
+\contentsline {subsubsection}{Environnement}{25}{subsection.2.1.5}%
+\contentsline {subsubsection}{Séquences système}{26}{subsection.2.1.5}%
+\contentsline {section}{\numberline {2.2}Conception}{30}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Architecture du SMA}{31}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Structure de l'agent et du SMA}{31}{subsection.2.2.2}%
+\contentsline {subsubsection}{Modélisation physique d'un nœud}{31}{subsection.2.2.2}%
+\contentsline {subsubsection}{Modélisation mentale : architecture BDI des agents cognitifs}{32}{subsection.2.2.2}%
+\contentsline {subsubsection}{Typologie des agents de SMA\_PARALLAX}{33}{subsection.2.2.2}%
+\contentsline {subsubsection}{Diagramme de classes}{34}{table.2.11}%
+\contentsline {subsubsection}{Actions et événements du système}{35}{figure.2.9}%
+\contentsline {subsection}{\numberline {2.2.3}Comportement des agents}{36}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}Description des rôles}{39}{subsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.2.5}Protocoles de communication et coordination}{47}{subsection.2.2.5}%
+\contentsline {subsubsection}{Communication inter-agents}{47}{subsection.2.2.5}%
+\contentsline {paragraph}{Structure d'un message de heartbeat}{47}{table.2.14}%
+\contentsline {paragraph}{Architecture à deux couches}{47}{table.2.14}%
+\contentsline {subsubsection}{Coordination distribuée : élection du nœud remplaçant}{48}{figure.2.26}%
+\contentsline {paragraph}{Objectif et déclencheurs}{48}{figure.2.26}%
+\contentsline {paragraph}{Fonction de score}{48}{figure.2.26}%
+\contentsline {subsubsection}{Coordination distribuée : détection de panne}{48}{algorithm.2}%
+\contentsline {subsubsection}{Coopération dans l'exécution}{49}{figure.2.27}%
+\contentsline {paragraph}{Inscription d'un nœud}{49}{figure.2.27}%
+\contentsline {paragraph}{Décomposition et distribution des calculs}{49}{algorithm.3}%
+\contentsline {paragraph}{Recomposition des résultats}{50}{algorithm.4}%
+\contentsline {chapter}{\numberline {3}Implémentation et Résultats}{51}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Conception et limites du modèle réseau classique (Network Agent Abstraction)}{51}{section.3.1}%
+\contentsline {section}{\numberline {3.2}L'Agent Réceptionniste}{52}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Architecture multi-thread de l'Agent Réceptionniste}{52}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Cycle de vie et découverte de l'Agent Réceptionniste}{53}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}L'Agent Master}{54}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Architecture multi-thread de l'Agent Master}{54}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Workflow complet d'Orchestration et d'Exécution}{55}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}L'Agent Worker}{57}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Architecture multi-thread de l'Agent Worker}{58}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Compilation Dynamique, Isolation et Rotation des Logs}{58}{subsection.3.4.2}%
+\contentsline {paragraph}{Compilation dynamique sans main()}{58}{subsection.3.4.2}%
+\contentsline {paragraph}{Isolation de l'exécution}{58}{subsection.3.4.2}%
+\contentsline {paragraph}{Rotation et surveillance des logs}{59}{Item.52}%
+\contentsline {section}{\numberline {3.5}L'Agent Contrôleur}{59}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}Architecture multi-thread de l'Agent Contrôleur}{59}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Mécanisme de Watchdog et Détection de pannes}{60}{subsection.3.5.2}%
+\contentsline {section}{\numberline {3.6}Trace complète d'un cycle de calcul}{60}{section.3.6}%
+\contentsline {chapter}{Conclusion Générale}{64}{chapter*.9}%
+\contentsline {chapter}{Références}{64}{chapter*.9}%

@@ -1,0 +1,8 @@
+Annotation: vcpus:2 at function find_max
+Annotation: reduce:max_reduce at function find_max
+
+
+Transformed function find_max into dispatch stub find_max_generated
+
+Worker stub: find_max_worker
+Written rewritten file to: /home/fureh_mitoto/Desktop/Parallax/GOAT-Plugs/progs/7c8ccb31-91b2-41f7-b90a-ec174bfb4f11.c_parsed.c

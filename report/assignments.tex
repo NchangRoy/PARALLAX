@@ -1,0 +1,366 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+
+\title{Distributed Execution Platform Architecture}
+\author{Project Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+This document describes the architecture and responsibilities of the distributed execution platform. 
+The system is composed of three major entities:
+
+\begin{itemize}
+    \item Worker Agent
+    \item Controller Agent
+    \item Master Node
+\end{itemize}
+
+Each component is divided into multiple threads or services responsible for computation, monitoring, orchestration, communication, and fault tolerance.
+
+\section{System Overview}
+
+The platform is designed to distribute workloads across multiple machines in a network. 
+The master node distributes tasks, worker agents execute them, and controller agents maintain cluster state and monitor failures.
+
+The architecture supports:
+
+\begin{itemize}
+    \item Parallel workload execution
+    \item Dynamic node monitoring
+    \item Fault tolerance
+    \item Heartbeat-based liveness detection
+    \item Distributed orchestration
+    \item Reliable network communication
+\end{itemize}
+
+\newpage
+
+\section{Worker Agent}
+
+The Worker Agent is responsible for executing workloads assigned by the master node and reporting execution results.
+
+\subsection{Execution Thread}
+
+The execution thread is responsible for handling and executing workloads received from the master.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Receive workloads from the network thread.
+    \item Create a dedicated thread for each incoming workload.
+    \item Identify the exact code segment to execute from the complete program source file.
+    \item Execute the extracted code using the provided input data.
+    \item Capture execution output and status.
+    \item Send execution results to the network thread for transmission.
+\end{itemize}
+
+\subsubsection{Execution Flow}
+
+\begin{enumerate}
+    \item Receive workload.
+    \item Create execution thread.
+    \item Parse source file.
+    \item Locate executable section.
+    \item Execute code.
+    \item Collect results.
+    \item Forward results to network process.
+\end{enumerate}
+
+\subsection{Monitoring Thread}
+
+The monitoring thread is responsible for collecting system statistics and hardware information.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Read CPU information using commands such as \texttt{lscpu}.
+    \item Monitor memory usage.
+    \item Monitor disk usage.
+    \item Monitor network utilization.
+    \item Collect system load metrics.
+    \item Send monitoring data periodically to the network thread.
+\end{itemize}
+
+\subsubsection{Example Commands}
+
+\begin{itemize}
+    \item \texttt{lscpu}
+    \item \texttt{free -m}
+    \item \texttt{df -h}
+    \item \texttt{top}
+    \item \texttt{uptime}
+\end{itemize}
+
+\subsection{Network Thread}
+
+The network thread handles all communication between the worker and the distributed network.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Poll local message queues for outgoing messages.
+    \item Send messages to remote nodes.
+    \item Receive incoming messages.
+    \item Dispatch incoming messages to the appropriate local service.
+    \item Confirm message delivery.
+    \item Retry transmission when failures occur.
+    \item Maintain a queue of unsent messages.
+\end{itemize}
+
+\subsubsection{Reliability Features}
+
+\begin{itemize}
+    \item Message acknowledgments.
+    \item Retry mechanisms.
+    \item Persistent unsent-message queue.
+    \item Timeout detection.
+    \item Failure recovery support.
+\end{itemize}
+
+\newpage
+
+\section{Controller Agent}
+
+The Controller Agent maintains a local representation of the distributed system state.
+
+\subsection{Purpose}
+
+The controller agent acts as an intermediary between worker nodes and the master node by maintaining node status, monitoring failures, and handling coordination tasks.
+
+\subsection{Local State Storage}
+
+The controller stores:
+
+\begin{itemize}
+    \item Node identifiers
+    \item CPU utilization
+    \item Memory usage
+    \item Availability status
+    \item Heartbeat timestamps
+    \item Active workload information
+\end{itemize}
+
+\subsection{Network Thread}
+
+The network thread inside the controller handles all communication between controller services and the distributed cluster.
+
+\subsection{State Receiver}
+
+The state receiver is responsible for receiving and updating node information.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Receive ``hello'' messages from newly joined nodes.
+    \item Register new agents into local state storage.
+    \item Receive heartbeat messages from agents.
+    \item Update node status continuously.
+    \item Detect inactive nodes through heartbeat timeout.
+\end{itemize}
+
+\subsection{Master Servant}
+
+The Master Servant acts as a service provider to the master node.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Listen for requests from the master.
+    \item Provide local state information.
+    \item Return status reports for all known agents.
+    \item Send monitoring data when requested.
+\end{itemize}
+
+\subsection{Panne Detection Service}
+
+The Panne service is responsible for failure detection and overload monitoring.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Monitor local states for overloaded agents.
+    \item Detect crashed or unreachable nodes.
+    \item Inform the master node when failures occur.
+    \item Detect master node failure.
+    \item Trigger election procedures when the master is unavailable.
+    \item Assist replacement master initialization.
+\end{itemize}
+
+\newpage
+
+\section{Master Node}
+
+The Master Node coordinates workload execution across the distributed system.
+
+\subsection{Network Thread}
+
+The network thread handles all communications between the master and distributed agents.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Receive execution requests.
+    \item Send workloads to workers.
+    \item Receive execution results.
+    \item Communicate with controller agents.
+    \item Handle acknowledgments and retries.
+\end{itemize}
+
+\subsection{Execution Master}
+
+The Execution Master coordinates distributed execution.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Execute local master-side logic.
+    \item Prepare workloads.
+    \item Coordinate distributed execution.
+    \item Interface with the parser and orchestrator.
+\end{itemize}
+
+\subsection{Parser}
+
+The parser transforms annotated source code into executable distributed code.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Parse annotated programs.
+    \item Detect distributed execution annotations.
+    \item Replace annotations with appropriate execution code.
+    \item Generate workload segments.
+    \item Prepare tasks for orchestration.
+\end{itemize}
+
+\subsection{Orchestrator}
+
+The orchestrator distributes workloads among available worker agents.
+
+\subsubsection{Responsibilities}
+
+\begin{itemize}
+    \item Receive tasks from the execution master.
+    \item Query controller agents for available nodes.
+    \item Determine workload distribution strategy.
+    \item Split workloads proportionally.
+    \item Dispatch workloads to workers.
+    \item Monitor execution progress.
+    \item Handle task redistribution on failures.
+\end{itemize}
+
+\newpage
+
+\section{Fault Tolerance Mechanisms}
+
+The system incorporates several fault tolerance techniques.
+
+\subsection{Heartbeat Monitoring}
+
+Nodes periodically send heartbeat messages to indicate availability.
+
+\subsection{Retry Mechanisms}
+
+All communications include acknowledgment checks and retry procedures.
+
+\subsection{Leader Election}
+
+If the master node fails:
+
+\begin{itemize}
+    \item Controller agents detect failure.
+    \item Election procedure is triggered.
+    \item New master node is selected.
+    \item Cluster state is restored.
+\end{itemize}
+
+\subsection{Message Persistence}
+
+Unsent messages are stored locally until successful delivery.
+
+\section{Concurrency Model}
+
+The platform uses a multi-threaded architecture.
+
+\subsection{Thread Isolation}
+
+Each major responsibility runs independently:
+
+\begin{itemize}
+    \item Execution Threads
+    \item Monitoring Threads
+    \item Network Threads
+    \item Failure Detection Threads
+    \item Orchestration Threads
+\end{itemize}
+
+\subsection{Advantages}
+
+\begin{itemize}
+    \item Parallel execution
+    \item Improved responsiveness
+    \item Better scalability
+    \item Isolation of failures
+\end{itemize}
+
+\newpage
+
+\section{Team Responsibilities}
+
+\begin{longtable}{|p{5cm}|p{8cm}|}
+\hline
+\textbf{Member} & \textbf{Assigned Component} \\
+\hline
+Tchami & Monitoring + Agent Initialization \\
+\hline
+Farelle & State Receiver \\
+\hline
+Ngonga & Network Layer \\
+\hline
+Tchapda & Worker Execution Module \\
+\hline
+Nzieleu & Orchestration Module \\
+\hline
+Felix & Master Servant \\
+\hline
+Kouam & Panne Detection Service \\
+\hline
+Bala & Execution Master \\
+\hline
+Ulrich & Execution Master \\
+\hline
+Tagne & Panne Detection Service \\
+\hline
+Roy & Parser \\
+\hline
+\end{longtable}
+
+\section{Conclusion}
+
+This architecture provides a scalable and fault-tolerant distributed execution platform capable of:
+
+\begin{itemize}
+    \item Executing distributed workloads efficiently
+    \item Monitoring cluster resources
+    \item Detecting node failures
+    \item Dynamically orchestrating execution
+    \item Recovering from communication and node failures
+\end{itemize}
+
+The separation of responsibilities between Worker Agents, Controller Agents, and the Master Node ensures modularity, scalability, and maintainability.
+
+\end{document}

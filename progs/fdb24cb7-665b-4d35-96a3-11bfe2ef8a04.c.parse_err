@@ -1,0 +1,8 @@
+Annotation: vcpus:2 at function matvec_mult
+Annotation: reduce:my_concat_reduce at function matvec_mult
+
+
+Transformed function matvec_mult into dispatch stub matvec_mult_generated
+
+Worker stub: matvec_mult_worker
+Written rewritten file to: /home/fureh_mitoto/Desktop/Parallax/GOAT-Plugs/progs/fdb24cb7-665b-4d35-96a3-11bfe2ef8a04.c_parsed.c

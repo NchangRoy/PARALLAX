@@ -1,0 +1,4 @@
+./progs/58d950d6-3458-4d42-afd1-d322a30637b2.c_parsed.c:28:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   28 | void *product_array(void *data, size_t total_size) {
+      | ^~~~
+./progs/58d950d6-3458-4d42-afd1-d322a30637b2.c_parsed.c:28:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]

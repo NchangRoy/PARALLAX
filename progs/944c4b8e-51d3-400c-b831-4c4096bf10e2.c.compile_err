@@ -1,0 +1,4 @@
+./progs/944c4b8e-51d3-400c-b831-4c4096bf10e2.c_parsed.c:48:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   48 | void *matvec_mult(void *matrix_data, size_t matrix_size, void *vector_data, size_t vector_size) {
+      | ^~~~
+./progs/944c4b8e-51d3-400c-b831-4c4096bf10e2.c_parsed.c:48:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]

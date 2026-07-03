@@ -108,20 +108,35 @@ task_assignment *create_assignments(
         return NULL;
     }
 
-    // 1. Locate SCATTER param and its SIZE_OF companion
+    // 1. Locate SCATTER param and its own SIZE_OF companion specifically.
+    //
+    // A submission can have more than one SIZE_OF param (e.g. one pointer
+    // that's SCATTERed plus another that's BROADCAST, each with its own
+    // size field - see test_matvec_dist.c). Only the SCATTER param's own
+    // companion needs adjusting per node (to the post-split chunk size);
+    // every other SIZE_OF param belongs to a BROADCAST pointer, whose data
+    // is never split, so its value must stay exactly as the caller set it.
+    //
+    // The parser (Parser/parser.cpp) always places a SIZE_OF param
+    // immediately after the pointer it describes, so the SCATTER's own
+    // companion - if any - is simply the next slot.
     int scatter_idx = -1;
-    int size_idx = -1;
     for (int p = 0; p < param_count; p++) {
         if (params[p].distribution == PARALLAX_SCATTER) {
             scatter_idx = p;
-        } else if (params[p].distribution == PARALLAX_SIZE_OF) {
-            size_idx = p;
+            break;
         }
     }
 
     if (scatter_idx < 0) {
         fprintf(stderr, "[Orchestrator] Error: No SCATTER parameter found!\n");
         return NULL;
+    }
+
+    int size_idx = -1;
+    if (scatter_idx + 1 < param_count &&
+        params[scatter_idx + 1].distribution == PARALLAX_SIZE_OF) {
+        size_idx = scatter_idx + 1;
     }
 
     void *scatter_data = params[scatter_idx].data;

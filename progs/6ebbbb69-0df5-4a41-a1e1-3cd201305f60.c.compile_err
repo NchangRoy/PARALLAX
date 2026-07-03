@@ -1,0 +1,4 @@
+./progs/6ebbbb69-0df5-4a41-a1e1-3cd201305f60.c_parsed.c:35:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   35 | void *sum_array(void *data, size_t total_size) {
+      | ^~~~
+./progs/6ebbbb69-0df5-4a41-a1e1-3cd201305f60.c_parsed.c:35:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]

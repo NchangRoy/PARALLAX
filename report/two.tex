@@ -1,0 +1,268 @@
+\section{Modélisation des interactions}
+
+\subsection{Modélisation mathématique des interactions}
+
+\subsubsection{Choix du cadre formel}
+
+Plusieurs formalismes ont été envisagés pour décrire les interactions du cluster : les automates finis, les réseaux de Petri colorés et temporisés, et le modèle événementiel à passage de messages avec ordre causal. Nous avons retenu ce dernier pour trois raisons.
+
+D'abord, il constitue le formalisme standard de la théorie des systèmes distribués asynchrones, introduit par Lamport et formalisé par Chandy et Lamport. Il ne fait aucune hypothèse sur une horloge globale partagée, hypothèse qui serait irréaliste sur un réseau local dont les nœuds dérivent indépendamment. Ensuite, il se projette naturellement sur la programmation orientée événement que nous adoptons au niveau de l'implémentation : chaque message reçu, chaque temporisation expirée, chaque mesure franchissant un seuil se traduisent en événement traité par un \textit{handler}. Enfin, il rend explicite la distinction entre canaux fiables et canaux best-effort, distinction qui justifie directement nos choix TCP/UDP.
+
+\subsubsection{Définitions fondamentales}
+
+\begin{definition}[Nœud]
+Un \emph{nœud} est une machine participant au cluster, formellement représentée par le couple
+\[
+n_i = (\mathrm{uuid}_i, \mathbf{v}_i)
+\]
+où $\mathrm{uuid}_i$ est un identifiant unique stable (généré à la première connexion et persisté localement) et $\mathbf{v}_i \in \mathbb{R}^p$ est le vecteur de caractéristiques (CPU, RAM, uptime, charge courante, etc.). L'ensemble des nœuds actifs à l'instant $t$ est noté $V(t)$.
+\end{definition}
+
+\begin{definition}[Canal de communication]
+Un \emph{canal} $c_{ij}$ est une arête orientée de $n_i$ vers $n_j$ transportant des messages. On distingue deux natures de canaux :
+\begin{itemize}
+    \item $C_{\mathrm{rel}}$ : \emph{canal fiable ordonné} (livraison garantie, ordre FIFO préservé) ;
+    \item $C_{\mathrm{be}}$ : \emph{canal best-effort} (perte et désordre tolérés).
+\end{itemize}
+Les messages critiques transitent sur $C_{\mathrm{rel}}$ (implémenté en TCP) ; les signaux à haute fréquence et à perte tolérable transitent sur $C_{\mathrm{be}}$ (implémenté en UDP).
+\end{definition}
+
+\begin{definition}[Message]
+Un \emph{message} est un tuple typé
+\[
+m = (\tau, s, d, k, p, L)
+\]
+où $\tau \in \mathcal{T}$ est le type du message, $s \in V$ l'émetteur, $d \in V \cup \{\bot\}$ le destinataire ($\bot$ pour la diffusion), $k \in \mathbb{N}$ un numéro de séquence monotone local à $s$, $p$ la charge utile spécifique au type, et $L$ l'estampille logique de Lamport de l'émetteur au moment de l'envoi.
+\end{definition}
+
+Le type $\tau$ prend ses valeurs dans un ensemble fini de types de messages protocolaires :
+\[
+\mathcal{T} = \{\; \textsc{hb},\; \textsc{hello},\; \textsc{welcome},\; \textsc{join},\; \textsc{leave},\;
+\textsc{election},\; \textsc{alive},\; \textsc{coord},\;
+\textsc{task},\; \textsc{result},\; \textsc{overload},\; \textsc{gossip},\; \ldots \;\}.
+\]
+
+\begin{definition}[Événement]
+Un \emph{événement} $e$ est un changement d'état observable. Les événements du cluster appartiennent à trois classes :
+\[
+\mathcal{E} = \mathcal{E}_{\mathrm{recv}} \cup \mathcal{E}_{\mathrm{timeout}} \cup \mathcal{E}_{\mathrm{local}}
+\]
+où $\mathcal{E}_{\mathrm{recv}}$ désigne les événements de réception d'un message, $\mathcal{E}_{\mathrm{timeout}}$ les expirations de temporisations, et $\mathcal{E}_{\mathrm{local}}$ les événements internes d'un nœud (mesure franchissant un seuil, changement d'état d'un agent).
+\end{definition}
+
+\begin{definition}[Agent]
+Chaque nœud $n_i$ héberge un agent formellement défini par le triplet
+\[
+\mathcal{A}_i = (S_i, \delta_i, s_i^{0})
+\]
+où $S_i$ est l'espace des états internes de l'agent, par exemple
+\[
+S_i \supseteq \{\textsc{idle},\; \textsc{running},\; \textsc{electing},\; \textsc{leader},\; \textsc{standby},\; \textsc{overloaded}\},
+\]
+$s_i^{0} \in S_i$ l'état initial, et
+\[
+\delta_i : S_i \times \mathcal{E} \longrightarrow S_i \times 2^{\mathcal{M}}
+\]
+la fonction de transition qui, à partir d'un état courant et d'un événement reçu, produit un nouvel état et un ensemble (éventuellement vide) de messages à émettre.
+\end{definition}
+
+\subsubsection{Ordre causal et horloges logiques}
+
+En l'absence d'horloge globale, nous utilisons la relation \emph{happens-before} de Lamport pour raisonner sur l'antériorité des événements.
+
+\begin{definition}[Relation happens-before]
+La relation $\to$ sur l'ensemble $\mathcal{E}$ des événements est la plus petite relation telle que :
+\begin{enumerate}
+    \item[\textbf{(i)}] si $e_1$ et $e_2$ se produisent sur un même nœud et $e_1$ précède localement $e_2$, alors $e_1 \to e_2$ ;
+    \item[\textbf{(ii)}] si $e_1 = \mathrm{send}(m)$ et $e_2 = \mathrm{recv}(m)$, alors $e_1 \to e_2$ ;
+    \item[\textbf{(iii)}] $\to$ est transitive : $e_1 \to e_2 \text{ et } e_2 \to e_3 \Rightarrow e_1 \to e_3$.
+\end{enumerate}
+Deux événements $e_1, e_2$ sont dits \emph{concurrents}, noté $e_1 \parallel e_2$, si ni $e_1 \to e_2$ ni $e_2 \to e_1$.
+\end{definition}
+
+Chaque nœud maintient une \emph{horloge logique de Lamport} $L_i \in \mathbb{N}$ mise à jour selon la règle suivante : à chaque événement local, $L_i \leftarrow L_i + 1$ ; à chaque réception d'un message porteur de l'estampille $L_m$, $L_i \leftarrow \max(L_i, L_m) + 1$. Cette horloge garantit que $e_1 \to e_2 \Rightarrow L(e_1) < L(e_2)$.
+
+\subsubsection{État global du système}
+
+\begin{definition}[État global]
+L'\emph{état global} du système à l'instant $t$ est défini par
+\[
+GS(t) = \left( \bigcup_{i \in V(t)} S_i(t) \right) \cup \left( \bigcup_{(i,j) \in E(t)} \mu_{ij}(t) \right)
+\]
+où $S_i(t)$ est l'état interne de l'agent $\mathcal{A}_i$ à l'instant $t$ et $\mu_{ij}(t)$ la file de messages en transit sur le canal $c_{ij}$ à l'instant $t$.
+\end{definition}
+
+\subsubsection{Vue en couches du modèle}
+
+La figure~\ref{fig:pile} représente les couches du modèle mathématique et leurs dépendances. Chaque couche supérieure s'exprime entièrement à partir du vocabulaire fourni par la couche inférieure.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.15cm]
+\node[layer, fill=blue!15] (n1) {Nœuds : $n_i = (\mathrm{uuid}_i, \mathbf{v}_i)$, ensemble $V(t)$};
+\node[layer, above=of n1, fill=blue!10] (n2) {Canaux typés : $C_{\mathrm{rel}}$ (fiable / TCP) \quad $C_{\mathrm{be}}$ (best-effort / UDP)};
+\node[layer, above=of n2, fill=blue!15] (n3) {Messages typés : $m = (\tau, s, d, k, p, L)$, types $\mathcal{T}$};
+\node[layer, above=of n3, fill=blue!10] (n4) {Événements : $\mathcal{E} = \mathcal{E}_{\mathrm{recv}} \cup \mathcal{E}_{\mathrm{timeout}} \cup \mathcal{E}_{\mathrm{local}}$};
+\node[layer, above=of n4, fill=blue!15] (n5) {Agents : $\mathcal{A}_i = (S_i, \delta_i, s_i^0)$, transitions $\delta_i$};
+\node[layer, above=of n5, fill=blue!10] (n6) {Ordre causal $\to$ et horloges logiques $L_i$};
+\node[layer, above=of n6, fill=blue!15] (n7) {État global $GS(t)$ (cohérence, capture, détection)};
+
+\draw[->, thick, >=Latex, gray!60] (n1.north) -- (n2.south);
+\draw[->, thick, >=Latex, gray!60] (n2.north) -- (n3.south);
+\draw[->, thick, >=Latex, gray!60] (n3.north) -- (n4.south);
+\draw[->, thick, >=Latex, gray!60] (n4.north) -- (n5.south);
+\draw[->, thick, >=Latex, gray!60] (n5.north) -- (n6.south);
+\draw[->, thick, >=Latex, gray!60] (n6.north) -- (n7.south);
+\end{tikzpicture}
+\caption{Vue en couches du modèle mathématique des interactions.}
+\label{fig:pile}
+\end{figure}
+
+\subsection{Protocole d'élection du nœud maître}
+
+\subsubsection{Objectif et déclencheurs}
+
+Le protocole d'élection produit, dans un délai borné et avec un coût en messages maîtrisé, un consensus sur l'identité du nœud maître unique du cluster. Trois événements déclenchent une élection.
+
+\textbf{(D1) Démarrage à froid.} Aucun maître n'est reconnu dans le cluster. Le premier nœud rejoignant un cluster vide initie une élection.
+
+\textbf{(D2) Détection de panne du maître.} Un nœud constate l'absence prolongée de heartbeat du maître courant.
+
+\textbf{(D3) Stepdown volontaire.} Le maître lui-même décide de se retirer (maintenance, surcharge durable). Il diffuse alors un message \textsc{leave} avant d'arrêter ses responsabilités.
+
+\subsubsection{Fonction de score}
+
+Un algorithme de Bully classique élirait le nœud d'identifiant le plus élevé, ce qui serait inadéquat dans un cluster hétérogène. Nous introduisons donc un score de capacité pondéré.
+
+\begin{definition}[Score d'élection]
+Le \emph{score d'élection} d'un nœud $n_i$ à l'instant $t$ est
+\[
+\mathrm{Score}(i, t) = \alpha \, \widehat{\mathrm{CPU}}_i + \beta \, \widehat{\mathrm{RAM}}_i + \gamma \, \widehat{\mathrm{uptime}}_i + \delta \, (1 - \ell_i(t))
+\]
+où les valeurs $\widehat{\cdot} \in [0,1]$ sont normalisées par min-max sur le cluster, $\ell_i(t) \in [0,1]$ est la charge courante, et les coefficients satisfont $\alpha + \beta + \gamma + \delta = 1$.
+\end{definition}
+
+Nous proposons les valeurs initiales suivantes :
+\[
+\alpha = 0{,}35, \quad \beta = 0{,}30, \quad \gamma = 0{,}20, \quad \delta = 0{,}15.
+\]
+
+\subsubsection{Règle de départage}
+
+En cas d'égalité stricte des scores, le départage repose sur l'ordre lexicographique des UUID. Le leader élu est
+\[
+\mathrm{Leader}^*(t) = \arg\max_{i \in V(t)} \big( \mathrm{Score}(i,t), \; \mathrm{uuid}_i \big)
+\]
+
+\subsubsection{Algorithme Bully modifié par score}
+
+Nous adaptons l'algorithme de Bully en remplaçant la comparaison d'identifiants par la comparaison de scores.
+
+\begin{algorithm}[H]
+\caption{Initiation d'une élection par le nœud $k$}
+\begin{algorithmic}[1]
+\Procedure{InitiateElection}{$k$}
+    \State $\sigma_k \gets \textsc{electing}$
+    \State $\mathcal{H} \gets \{ j \in V \mid \mathrm{Score}(j,t) > \mathrm{Score}(k,t) \}$
+    \If{$\mathcal{H} = \emptyset$}
+        \State diffuser \textsc{coord}$(\mathrm{uuid}_k)$ sur $C_{\mathrm{rel}}$
+        \State $\sigma_k \gets \textsc{leader}$
+    \Else
+        \For{\textbf{chaque} $j \in \mathcal{H}$}
+            \State envoyer \textsc{election}$(\mathrm{Score}(k,t), \mathrm{uuid}_k)$ à $j$
+        \EndFor
+        \State armer la temporisation $T_{\mathrm{attente}}$
+    \EndIf
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Traitement des messages d'élection}
+\begin{algorithmic}[1]
+\Procedure{OnReceive}{\textsc{election}$(s, u)$}
+    \If{$\mathrm{Score}(k,t) > s$ \textbf{ou} ($\mathrm{Score}(k,t) = s$ \textbf{et} $\mathrm{uuid}_k > u$)}
+        \State envoyer \textsc{alive} à l'émetteur
+        \State \Call{InitiateElection}{$k$}
+    \EndIf
+\EndProcedure
+
+\Procedure{OnReceive}{\textsc{coord}$(u)$}
+    \State $\mathrm{leader}_k \gets u$
+    \State $\sigma_k \gets \textsc{normal}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+La figure~\ref{fig:chrono} illustre un scénario typique d'élection après panne du maître.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node_label/.style={font=\bfseries},
+    >=Latex,
+    msg/.style={->, thick},
+    death/.style={red, very thick}
+]
+% Timelines (vertical lines)
+\draw[thick] (0,0) -- (0,-6);
+\draw[thick] (4,0) -- (4,-6);
+\draw[thick] (8,0) -- (8,-6);
+\draw[thick] (12,0) -- (12,-6);
+
+% Node labels
+\node[node_label] at (0,0.4) {A (leader, $s{=}0.9$)};
+\node[node_label] at (4,0.4) {B ($s{=}0.6$)};
+\node[node_label] at (8,0.4) {C ($s{=}0.8$)};
+\node[node_label] at (12,0.4) {D ($s{=}0.5$)};
+
+% Death of A
+\draw[death] (-0.3,-0.8) -- (0.3,-1.2);
+\draw[death] (-0.3,-1.2) -- (0.3,-0.8);
+\node[red, right=0.1cm of {(0.3,-1.0)}, font=\small] {panne};
+
+% B detects timeout
+\node[align=center, font=\small, draw, fill=yellow!20, rounded corners=2pt] at (4,-1.8) {timeout\\HB de A};
+
+% B sends ELECTION to C
+\draw[msg] (4.2,-2.2) -- (7.8,-2.6) node[midway, above, sloped, font=\small] {\textsc{election}$(0.6)$};
+
+% C replies ALIVE
+\draw[msg] (7.8,-3.0) -- (4.2,-3.3) node[midway, above, sloped, font=\small] {\textsc{alive}};
+
+% C initiates its own election (no one higher)
+\node[align=center, font=\small, draw, fill=green!20, rounded corners=2pt] at (8,-3.9) {aucun $j$\\avec $s > 0.8$};
+
+% C broadcasts COORD
+\draw[msg, thick] (8,-4.4) -- (4.2,-4.7) node[near end, above, sloped, font=\small] {\textsc{coord}(C)};
+\draw[msg, thick] (8,-4.4) -- (11.8,-4.7) node[near end, above, sloped, font=\small] {\textsc{coord}(C)};
+
+% Final state
+\node[align=center, font=\small, draw, fill=blue!15, rounded corners=2pt] at (4,-5.3) {leader $\gets$ C};
+\node[align=center, font=\small, draw, fill=blue!15, rounded corners=2pt] at (8,-5.3) {$\sigma$ $\gets$ \textsc{leader}};
+\node[align=center, font=\small, draw, fill=blue!15, rounded corners=2pt] at (12,-5.3) {leader $\gets$ C};
+
+% Time axis
+\draw[->, thick] (-1,-6.3) -- (13,-6.3) node[right] {temps};
+\end{tikzpicture}
+\caption{Chronogramme d'une élection déclenchée par la panne du maître A.}
+\label{fig:chrono}
+\end{figure}
+
+\subsubsection{Maître secondaire et failover rapide}
+
+Pour réduire l'indisponibilité pendant une élection, nous introduisons le rôle de \emph{maître secondaire}. Au moment où un leader est élu, le nœud disposant du deuxième plus haut score devient automatiquement maître secondaire. Le leader primaire lui réplique en continu deux structures critiques : le registre d'adhésion du cluster et l'état minimal des tâches en cours.
+
+Lorsque le primaire devient silencieux, le standby bascule \emph{immédiatement} : il se proclame leader et diffuse \textsc{coord}. Ce basculement ne nécessite pas de nouvelle élection ; son délai est borné par $T_{\mathrm{HB}} + T_{\mathrm{latence}}$.
+
+\subsubsection{Quorum et tolérance aux partitions}
+
+\begin{definition}[Règle de quorum]
+Un nœud $k$ ne peut transiter dans l'état \textsc{leader} que s'il observe, dans sa vue courante du cluster, au moins
+\[
+Q(N) = \left\lceil \frac{N}{2} \right\rceil + 1
+\]
+nœuds actifs (lui-même inclus), où $N$ est la taille connue du cluster.
+\end{definition}
+
+Cette règle garantit qu'au plus une partition peut contenir un leader actif, évitant ainsi le scénario de \emph{split-brain}.

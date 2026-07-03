@@ -420,9 +420,20 @@ void initialize_agent(void) {
         agent.threads.network_active = 1;
         printf("[THREAD] Network thread started\n");
     }
-    
+
+    // 3b. Start monitoring before HELLO: send_hello() below reads
+    // monitoring_get_latest(), which returns a zeroed-out MachineMetrics
+    // (cores=0, model="", etc.) until the monitoring thread's first read
+    // completes. Starting it here (and giving it a moment to run) means the
+    // very first HELLO carries real hardware specs instead of all zeros.
+    if (!agent.threads.monitoring_active && agent.role != ROLE_CONTROLLER) {
+        pthread_create(&agent.threads.monitoring, NULL, monitoring_thread_run, NULL);
+        agent.threads.monitoring_active = 1;
+        printf("[THREAD] Monitoring thread started\n");
+    }
+
     // 4. Send HELLO after network thread is started (queue exists)
-    // Give network thread time to initialize
+    // Give network + monitoring threads time to initialize
     sleep(1);
     if (agent.role != ROLE_CONTROLLER) {
         send_hello();

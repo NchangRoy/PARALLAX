@@ -1,0 +1,44 @@
+[SubmittedProg] Starting distributed sum test...
+[MasterExec] Sending NODES query with reply address 192.168.30.43:9000 (queue: HKJy7EV)
+[MasterExec] NODES query sent to 192.168.30.7:9000
+Deleted queue: HKJy7EV (id=39)
+[MasterExec] 1 worker(s) available
+[MasterExec] WARNING: requested 2 node(s) but only 1 available — proceeding with 1
+
+=================================
+NODE 0 ASSIGNMENT DETAILS
+=================================
+uuid          : 6d1f53ed-5b18-41c8-bb76-55954f2c5ee1
+ip            : 192.168.30.182
+cpu usage     : 0.54
+ram usage     : 43.60
+function      : sum_array_worker
+nb chunk bytes: 588
+param count   : 2
+[Team] Thread tid=0 started  function=sum_array_worker  worker=192.168.30.182
+[Team] Serialized param chunk size: 588 bytes, contains 2 params
+[Team] Thread tid=0 resuming — sending to worker
+[Master] Sent CHCK for '3ba5a25b-c220-4c36-9b45-72554f108a70' to worker 192.168.30.182:9000
+[Master] Waiting for CHCK response on queue 0ZCrozH...
+[Master] CHCK response: NONE
+Deleted queue: 0ZCrozH (id=40)
+[Team] Program missing on worker, sending source...
+[Master] Sent PROG message to worker 192.168.30.182:9000
+[Master] Waiting for PROG response on queue A8adTgu...
+[Master] PROG response: task_mq=iUd18dv
+Deleted queue: A8adTgu (id=41)
+[Team] Sending task to queue: iUd18dv
+[Master] Sent task (function=sum_array_worker) to queue iUd18dv
+[Master] Waiting for task result on queue DawJUg6...
+[Master] Task result: 5050
+Deleted queue: DawJUg6 (id=42)
+
+=================================
+AGGREGATED EXECUTION RESULTS
+=================================
+---------------------------------
+FINAL REDUCED RESULT: 5050
+=================================
+
+Node 0 partial result: 5050
+[SubmittedProg] Done.

@@ -1,0 +1,46 @@
+
+[SubmittedProg] Starting distributed matrix-vector multiply...
+[MasterExec] Sending NODES query with reply address 192.168.30.43:9000 (queue: dNcKbbm)
+[MasterExec] NODES query sent to 192.168.30.7:9000
+Deleted queue: dNcKbbm (id=51)
+[MasterExec] 1 worker(s) available
+[MasterExec] WARNING: requested 2 node(s) but only 1 available — proceeding with 1
+
+=================================
+NODE 0 ASSIGNMENT DETAILS
+=================================
+uuid          : 6d1f53ed-5b18-41c8-bb76-55954f2c5ee1
+ip            : 192.168.30.182
+cpu usage     : 0.54
+ram usage     : 43.60
+function      : matvec_mult_worker
+nb chunk bytes: 432
+param count   : 4
+[Team] Thread tid=0 started  function=matvec_mult_worker  worker=192.168.30.182
+[Team] Serialized param chunk size: 432 bytes, contains 4 params
+[Team] Thread tid=0 resuming — sending to worker
+[Master] Sent CHCK for '9c74177c-6cda-4e94-8281-b184a1d2b4a3' to worker 192.168.30.182:9000
+[Master] Waiting for CHCK response on queue 5GREDM1...
+[Master] CHCK response: NONE
+Deleted queue: 5GREDM1 (id=52)
+[Team] Program missing on worker, sending source...
+[Master] Sent PROG message to worker 192.168.30.182:9000
+[Master] Waiting for PROG response on queue HoNoKi8...
+[Master] PROG response: task_mq=kTaAb4N
+Deleted queue: HoNoKi8 (id=53)
+[Team] Sending task to queue: kTaAb4N
+[Master] Sent task (function=matvec_mult_worker) to queue kTaAb4N
+[Master] Waiting for task result on queue SXhG6Cr...
+[Master] Task result: 
+Deleted queue: SXhG6Cr (id=54)
+
+=================================
+AGGREGATED EXECUTION RESULTS
+=================================
+---------------------------------
+FINAL REDUCED RESULT: 
+=================================
+
+Node 0 partial result: 
+[SubmittedProg] Done.
+

@@ -1,0 +1,40 @@
+[SubmittedProg] Starting sum map-reduce...
+[MasterExec] Sending NODES query with reply address 192.168.1.184:9000 (queue: QbSBdmv)
+[MasterExec] NODES query sent to 192.168.1.199:9000
+Deleted queue: QbSBdmv (id=32790)
+[MasterExec] 1 worker(s) available
+[MasterExec] WARNING: requested 2 node(s) but only 1 available — proceeding with 1
+
+=================================
+NODE 0 ASSIGNMENT DETAILS
+=================================
+uuid          : 6d1f53ed-5b18-41c8-bb76-55954f2c5ee1
+ip            : 192.168.1.132
+cpu usage     : 0.21
+ram usage     : 42.53
+function      : sum_array_worker
+nb chunk bytes: 588
+param count   : 2
+[Team] Thread tid=0 started  function=sum_array_worker  worker=192.168.1.132
+[Team] Serialized param chunk size: 588 bytes, contains 2 params
+[Team] Thread tid=0 resuming — sending to worker
+[Master] Sent CHCK for 'test_sum' to worker 192.168.1.132:9000
+[Master] Waiting for CHCK response on queue q2MEpmI...
+[Master] CHCK response: M27ZzK8
+Deleted queue: q2MEpmI (id=32791)
+[Team] Program already loaded on worker, skipping PROG.
+[Team] Sending task to queue: M27ZzK8
+[Master] Sent task (function=sum_array_worker) to queue M27ZzK8
+[Master] Waiting for task result on queue 9DgfXFM...
+[Master] Task result: 5050
+Deleted queue: 9DgfXFM (id=32792)
+
+=================================
+AGGREGATED EXECUTION RESULTS
+=================================
+---------------------------------
+FINAL REDUCED RESULT: 5050
+=================================
+
+Node 0 partial result: 5050
+[SubmittedProg] Done.

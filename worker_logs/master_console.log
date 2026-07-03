@@ -1,0 +1,95 @@
+[INIT] UUID loaded from file: f66b4762-c214-41eb-b0be-9d91b3170b6c
+[INIT] Initial role: 3
+[THREAD] Network thread started
+[THREAD] Monitoring thread started
+listening for connections on port 9000UDP listening on port 9001
+
+╔════════════════════════════════════════════════════════════════════╗
+║ [SENDING] Message Type: MSG_STATECAPTURE_INIT                                 ║
+╚════════════════════════════════════════════════════════════════════╝
+  ▼ IDENTITÉ
+    • UUID:      f66b4762-c214-41eb-b0be-9d91b3170b6c
+    • IP:        192.168.30.43:9000
+    • Timestamp: 2026-07-03 18:51:49 (1783101109)
+    • Type:      3
+    • Role:      3
+  ▼ CPU
+    • Usage:           20.57%
+    • Load Average:    1.38, 2.01, 2.36
+    • Cores:           4
+    • Threads/Core:    8
+    • Frequency:       3200.00 MHz
+    • Model:           Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz
+  ▼ MÉMOIRE (RAM)
+    • Usage:           70.77%
+    • Available:       4641.69 MB
+    • Used:            11239 MB
+    • Total:           15881 MB
+  ▼ DISQUE
+    • Usage:           0.00%
+    • Used:            542853 MB
+    • Total:           599296 MB
+    • Mount Point:     /
+  ▼ RÉSEAU
+    • Bandwidth:       0.00 Mbps
+    • Connections:     106
+    • Interface:       wlp3s0
+  ▼ SYSTÈME
+    • Active Processes:    5
+    • Context Switch Rate: 0.10/s
+    • Uptime:              11758 seconds
+    • Is Overloaded:       NO
+  ▼ CALCULS
+    • Queue Length: 0
+    • Score:        0.00
+╔════════════════════════════════════════════════════════════════════╗
+
+[MONITORING] MSG_STATECAPTURE_INIT sent (msg #1)
+[NET] STATECAPTURE_INIT
+
+╔════════════════════════════════════════════════════════════════════╗
+║ [SENDING] Message Type: MSG_HELLO                                             ║
+╚════════════════════════════════════════════════════════════════════╝
+  ▼ IDENTITÉ
+    • UUID:      f66b4762-c214-41eb-b0be-9d91b3170b6c
+    • IP:        192.168.30.43:9000
+    • Timestamp: 2026-07-03 18:51:50 (1783101110)
+    • Type:      1
+    • Role:      3
+  ▼ CPU
+    • Usage:           20.57%
+    • Load Average:    1.38, 2.01, 2.36
+    • Cores:           4
+    • Threads/Core:    8
+    • Frequency:       3200.00 MHz
+    • Model:           Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz
+  ▼ MÉMOIRE (RAM)
+    • Usage:           70.77%
+    • Available:       4641.69 MB
+    • Used:            11239 MB
+    • Total:           15881 MB
+  ▼ DISQUE
+    • Usage:           0.00%
+    • Used:            542853 MB
+    • Total:           599296 MB
+    • Mount Point:     /
+  ▼ RÉSEAU
+    • Bandwidth:       0.00 Mbps
+    • Connections:     106
+    • Interface:       wlp3s0
+  ▼ SYSTÈME
+    • Active Processes:    5
+    • Context Switch Rate: 0.10/s
+    • Uptime:              11758 seconds
+    • Is Overloaded:       NO
+  ▼ CALCULS
+    • Queue Length: 0
+    • Score:        0.00
+╔════════════════════════════════════════════════════════════════════╗
+
+Waiting for controller's IP reply on port 9001 via message queue...
+[INIT] HELLO sent: uuid=f66b4762-c214-41eb-b0be-9d91b3170b6c on interface wlp3s0
+
+--- Controller IP Received ---
+Message Type: HELLO
+Contro

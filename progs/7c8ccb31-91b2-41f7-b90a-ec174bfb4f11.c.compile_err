@@ -1,0 +1,4 @@
+./progs/7c8ccb31-91b2-41f7-b90a-ec174bfb4f11.c_parsed.c:33:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   33 | void *find_max(int *arr, size_t n) {
+      | ^~~~
+./progs/7c8ccb31-91b2-41f7-b90a-ec174bfb4f11.c_parsed.c:33:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]

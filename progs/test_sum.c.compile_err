@@ -1,0 +1,4 @@
+./progs/test_sum.c_parsed.c:23:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   23 | void *sum_array(void *data, size_t total_size) {
+      | ^~~~
+./progs/test_sum.c_parsed.c:23:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]

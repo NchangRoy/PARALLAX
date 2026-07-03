@@ -1,0 +1,8 @@
+Annotation: vcpus:2 at function product_array
+Annotation: reduce:my_product_reduce at function product_array
+
+
+Transformed function product_array into dispatch stub product_array_generated
+
+Worker stub: product_array_worker
+Written rewritten file to: /home/fureh_mitoto/Desktop/Parallax/GOAT-Plugs/progs/58d950d6-3458-4d42-afd1-d322a30637b2.c_parsed.c
