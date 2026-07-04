@@ -27,6 +27,37 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Copie les infos matérielles statiques d'un message vers un nœud, une seule
+ * fois (idempotent via node->hardware.initialized). Appelé depuis le
+ * handler MSG_HELLO *et* MSG_STATECAPTURE_INIT : le HELLO transporte déjà
+ * ces champs (voir debug_print_sent_metrics côté agent) et arrive en
+ * général bien avant le premier STATECAPTURE_INIT, donc s'appuyer
+ * uniquement sur ce dernier laissait le profil matériel vide (cores/model/
+ * freq/ram_total/disk_total) pendant un temps arbitraire, voire
+ * indéfiniment si ce message se perdait.
+ */
+static void populate_hardware_if_needed(NodeInfo *node, MachineMetrics *msg) {
+    if (node->hardware.initialized) return;
+
+    node->hardware.cpu_cores            = msg->cpu_cores;
+    node->hardware.cpu_threads_per_core = msg->cpu_threads_per_core;
+    node->hardware.cpu_freq_mhz         = msg->cpu_freq_mhz;
+    node->hardware.ram_total_mb         = msg->mem_total_mb;
+    node->hardware.disk_total_gb        = msg->disk_total_mb;
+    strncpy(node->hardware.cpu_model,
+            msg->cpu_model,     sizeof(node->hardware.cpu_model)     - 1);
+    strncpy(node->hardware.disk_mount,
+            msg->disk_mount,    sizeof(node->hardware.disk_mount)    - 1);
+    strncpy(node->hardware.network_iface,
+            msg->network_iface, sizeof(node->hardware.network_iface) - 1);
+    node->hardware.initialized = 1;
+
+    printf("[StateReceiver] ✓ Hardware nœud %s : %d cœurs %.0fMHz %ldMo RAM\n",
+           node->uuid, node->hardware.cpu_cores,
+           node->hardware.cpu_freq_mhz, node->hardware.ram_total_mb);
+}
+
+/**
  * Enregistre un nouveau nœud dans la table globale lors de la réception d'un MSG_HELLO.
  */
 static void register_node(MachineMetrics* msg) {
@@ -43,7 +74,8 @@ static void register_node(MachineMetrics* msg) {
         node->role = msg->role;
         node->status = NODE_ACTIF;
         node->last_heartbeat = time(NULL);
-        
+        populate_hardware_if_needed(node, msg);
+
         pthread_mutex_unlock(&g_node_table.lock);
         return;
     }
@@ -51,6 +83,7 @@ static void register_node(MachineMetrics* msg) {
     node = node_table_add(&g_node_table, msg->uuid, msg->ip, msg->port);
     if (node) {
         node->role = msg->role;
+        populate_hardware_if_needed(node, msg);
         printf("[StateReceiver] Nouveau nœud : uuid=%s ip=%s role=%d\n",
                node->uuid, node->ip, node->role);
     }
@@ -522,25 +555,7 @@ static void init_metrics(MachineMetrics* msg) {
     node->ip[sizeof(node->ip) - 1] = '\0';
     node->port = msg->port;
 
-    // Mise à jour des informations matérielles si pas encore initialisées
-    if (!node->hardware.initialized) {
-        node->hardware.cpu_cores            = msg->cpu_cores;
-        node->hardware.cpu_threads_per_core = msg->cpu_threads_per_core;
-        node->hardware.cpu_freq_mhz         = msg->cpu_freq_mhz;
-        node->hardware.ram_total_mb         = msg->mem_total_mb;
-        node->hardware.disk_total_gb        = msg->disk_total_mb;
-        strncpy(node->hardware.cpu_model,
-                msg->cpu_model,     sizeof(node->hardware.cpu_model)     - 1);
-        strncpy(node->hardware.disk_mount,
-                msg->disk_mount,    sizeof(node->hardware.disk_mount)    - 1);
-        strncpy(node->hardware.network_iface,
-                msg->network_iface, sizeof(node->hardware.network_iface) - 1);
-        node->hardware.initialized = 1;
-
-        printf("[StateReceiver] ✓ Hardware nœud %s : %d cœurs %.0fMHz %ldMo RAM\n",
-               node->uuid, node->hardware.cpu_cores,
-               node->hardware.cpu_freq_mhz, node->hardware.ram_total_mb);
-    }
+    populate_hardware_if_needed(node, msg);
 
     // Mise à jour classique de type heartbeat
     node->last_heartbeat    = time(NULL);
