@@ -102,10 +102,15 @@ task_assignment *create_assignments(
     int param_count,
     const char *function,
     MachineMetrics *metrics,
-    int node_count
+    int node_count,
+    int align
 ) {
     if (!params || param_count <= 0 || !metrics || node_count <= 0) {
         return NULL;
+    }
+    /* 0 and 1 both mean "no alignment" (plain byte-granular split) */
+    if (align < 1) {
+        align = 1;
     }
 
     // 1. Locate SCATTER param and its own SIZE_OF companion specifically.
@@ -193,9 +198,23 @@ task_assignment *create_assignments(
         float ratio = weights[i] / total_weight;
         size_t portion_elements = (size_t)(total_elements * ratio);
 
-        // Last node takes the remainder
         if (i == node_count - 1) {
+            // Last node takes the remainder, whatever it is - every element
+            // must land somewhere, even if that leaves a final, possibly
+            // unaligned chunk (only possible when total_elements itself
+            // isn't a multiple of align).
             portion_elements = total_elements - offset_elements;
+        } else if (align > 1) {
+            // Round down to a whole number of "align"-sized records (e.g.
+            // matrix rows) so a chunk boundary never lands mid-record.
+            portion_elements = (portion_elements / (size_t)align) * (size_t)align;
+            // Don't starve a node entirely just because its weighted share
+            // rounded below one full record, as long as there's enough
+            // left for it to take one without shorting later nodes to zero.
+            if (portion_elements == 0 &&
+                offset_elements + (size_t)align <= total_elements) {
+                portion_elements = (size_t)align;
+            }
         }
 
         size_t portion_bytes = portion_elements * elem_size;

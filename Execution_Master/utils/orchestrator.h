@@ -30,7 +30,8 @@ create_assignments(
     int param_count,
     const char *function,
     MachineMetrics *metrics,
-    int node_count
+    int node_count,
+    int align
 );
 
 MachineMetrics *get_mock_machine_metrics();

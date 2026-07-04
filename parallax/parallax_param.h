@@ -34,6 +34,16 @@ typedef struct {
 typedef struct {
     int expected_node_count;  /* 0 = auto (capped at PARALLAX_DEFAULT_NODE_CAP) */
     char aggregator_name[64];
+    int min_ram_mb;           /* 0 = no requirement. Hard filter: nodes reporting
+                                  less available RAM than this are excluded from
+                                  candidacy entirely (not just deprioritized) —
+                                  see filter_nodes_by_ram() in master_exec.c. */
+    int align;                /* 0 or 1 = no alignment (default byte-granular
+                                  split). N > 1 = scatter chunk boundaries are
+                                  rounded to a multiple of N elements, so
+                                  structured data (e.g. matrix rows) never gets
+                                  split mid-record — see create_assignments()
+                                  in orchestrator.c. */
 } ParallaxExecutionCtx;
 
 #endif /* PARALLAX_PARAM_H */

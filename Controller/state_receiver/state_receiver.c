@@ -94,6 +94,7 @@ MachineMetrics * get_all_active_workers(void) {
             metrics[i].cpu_usage = curr->metrics.cpu_usage;
             metrics[i].mem_usage = curr->metrics.ram_usage;
             metrics[i].mem_used_mb = curr->metrics.ram_used_mb;
+            metrics[i].mem_available_mb = curr->metrics.mem_available_mb;
             metrics[i].disk_usage = curr->metrics.disk_usage;
             metrics[i].disk_used_mb = curr->metrics.disk_used_mb;
             metrics[i].queue_len = curr->metrics.queue_len;
@@ -152,6 +153,7 @@ static MachineMetrics *get_all_cluster_nodes(void) {
         metrics[i].cpu_usage  = curr->metrics.cpu_usage;
         metrics[i].mem_usage  = curr->metrics.ram_usage;
         metrics[i].mem_used_mb  = curr->metrics.ram_used_mb;
+        metrics[i].mem_available_mb = curr->metrics.mem_available_mb;
         metrics[i].disk_usage   = curr->metrics.disk_usage;
         metrics[i].disk_used_mb = curr->metrics.disk_used_mb;
         metrics[i].queue_len    = curr->metrics.queue_len;

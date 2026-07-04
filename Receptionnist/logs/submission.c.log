@@ -1,0 +1,28 @@
+./progs/submission.c_parsed.c:16:20: error: redefinition of ‘__parallax_prog_code__’
+   16 | static const char *__parallax_prog_code__ = "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"parallax/parallax_param.h\"\n\nvoid * sum_array(void * data, size_t total_size) {\n    int *arr = (int *)data;\n    int count = (int)(total_size / sizeof(int));\n    long long sum = 0;\n    for (int i = 0; i < count; i++) {\n        sum += arr[i];\n    }\n    /* This line proves distribution: each worker only sees ITS chunk,\n       so count will be < 100 and the values will differ per node's log. */\n    printf(\"[WorkerTask] Got %d elements, first=%d last=%d, partial sum=%lld\\n\",\n           count, count > 0 ? arr[0] : 0, count > 0 ? arr[count-1] : 0, sum);\n    char *result = malloc(64);\n    sprintf(result, \"%lld\", sum);\n    return result;\n}\n\n\nvoid *sum_array_worker(void *__arg) {\n    ParallaxParam *__p = (ParallaxParam *)__arg;\n    void * data = (void *)__p[0].data;\n    size_t total_size = *(size_t *)__p[1].data;\n    return (void *)sum_array(data, total_size);\n}\n\n\n\ntypedef void *(*fn)(void *);\n\nfn matcher(char *name) {\n    if (strcmp(name, \"sum_array_worker\") == 0) {\n        return (fn)sum_array_worker;\n    }\n    return NULL;\n}\n\nint main() { return 0; }\n";
+      |                    ^~~~~~~~~~~~~~~~~~~~~~
+./progs/submission.c_parsed.c:6:20: note: previous definition of ‘__parallax_prog_code__’ with type ‘const char *’
+    6 | static const char *__parallax_prog_code__ = "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"parallax/parallax_param.h\"\n#include \"parallax/parallax_param.h\"\n\nvoid * sum_array(void * data, size_t total_size) {\n    int *arr = (int *)data;\n    int count = (int)(total_size / sizeof(int));\n    long long sum = 0;\n    for (int i = 0; i < count; i++) {\n        sum += arr[i];\n    }\n    /* This line proves distribution: each worker only sees ITS chunk,\n       so count will be < 100 and the values will differ per node's log. */\n    printf(\"[WorkerTask] Got %d elements, first=%d last=%d, partial sum=%lld\\n\",\n           count, count > 0 ? arr[0] : 0, count > 0 ? arr[count-1] : 0, sum);\n    char *result = malloc(64);\n    sprintf(result, \"%lld\", sum);\n    return result;\n}\n\n\nvoid *sum_array_worker(void *__arg) {\n    ParallaxParam *__p = (ParallaxParam *)__arg;\n    void * data = (void *)__p[0].data;\n    size_t total_size = *(size_t *)__p[1].data;\n    return (void *)sum_array(data, total_size);\n}\n\n\n\ntypedef void *(*fn)(void *);\n\nfn matcher(char *name) {\n    if (strcmp(name, \"sum_array_worker\") == 0) {\n        return (fn)sum_array_worker;\n    }\n    return NULL;\n}\n\nint main() { return 0; }\n";
+      |                    ^~~~~~~~~~~~~~~~~~~~~~
+./progs/submission.c_parsed.c:17:20: error: redefinition of ‘__parallax_prog_name__’
+   17 | static const char *__parallax_prog_name__ = "submission";
+      |                    ^~~~~~~~~~~~~~~~~~~~~~
+./progs/submission.c_parsed.c:7:20: note: previous definition of ‘__parallax_prog_name__’ with type ‘const char *’
+    7 | static const char *__parallax_prog_name__ = "submission";
+      |                    ^~~~~~~~~~~~~~~~~~~~~~
+./progs/submission.c_parsed.c:42:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   42 | void *sum_array(void *data, size_t total_size) {
+      | ^~~~
+./progs/submission.c_parsed.c:42:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+./progs/submission.c_parsed.c:102:8: error: redefinition of ‘sum_array_generated’
+  102 | void * sum_array_generated(void * data, size_t total_size) {
+      |        ^~~~~~~~~~~~~~~~~~~
+./progs/submission.c_parsed.c:72:8: note: previous definition of ‘sum_array_generated’ with type ‘void *(void *, size_t)’ {aka ‘void *(void *, long unsigned int)’}
+   72 | void * sum_array_generated(void * data, size_t total_size) {
+      |        ^~~~~~~~~~~~~~~~~~~
+./progs/submission.c_parsed.c:125:4: error: redefinition of ‘matcher’
+  125 | fn matcher(char *name) {
+      |    ^~~~~~~
+./progs/submission.c_parsed.c:95:4: note: previous definition of ‘matcher’ with type ‘void * (*(char *))(void *)’
+   95 | fn matcher(char *name) {
+      |    ^~~~~~~

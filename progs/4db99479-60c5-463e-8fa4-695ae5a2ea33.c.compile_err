@@ -1,0 +1,4 @@
+./progs/4db99479-60c5-463e-8fa4-695ae5a2ea33.c:34:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]
+   34 | void *sum_array(void *data, size_t total_size) {
+      | ^~~~
+./progs/4db99479-60c5-463e-8fa4-695ae5a2ea33.c:34:1: warning: ‘annotate’ attribute directive ignored [-Wattributes]

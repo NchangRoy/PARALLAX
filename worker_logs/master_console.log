@@ -10,34 +10,34 @@ listening for connections on port 9000UDP listening on port 9001
   ▼ IDENTITÉ
     • UUID:      f66b4762-c214-41eb-b0be-9d91b3170b6c
     • IP:        192.168.1.184:9000
-    • Timestamp: 2026-07-04 04:27:36 (1783135656)
+    • Timestamp: 2026-07-04 06:18:03 (1783142283)
     • Type:      3
     • Role:      3
   ▼ CPU
-    • Usage:           29.12%
-    • Load Average:    1.93, 2.31, 2.54
+    • Usage:           28.10%
+    • Load Average:    3.33, 4.64, 3.80
     • Cores:           4
     • Threads/Core:    8
-    • Frequency:       1313.72 MHz
+    • Frequency:       3400.00 MHz
     • Model:           Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz
   ▼ MÉMOIRE (RAM)
-    • Usage:           81.25%
-    • Available:       2976.71 MB
-    • Used:            12904 MB
+    • Usage:           84.10%
+    • Available:       2524.49 MB
+    • Used:            13356 MB
     • Total:           15881 MB
   ▼ DISQUE
     • Usage:           0.00%
-    • Used:            543839 MB
+    • Used:            544023 MB
     • Total:           599296 MB
     • Mount Point:     /
   ▼ RÉSEAU
     • Bandwidth:       0.00 Mbps
-    • Connections:     55
+    • Connections:     59
     • Interface:       wlp3s0
   ▼ SYSTÈME
-    • Active Processes:    5
-    • Context Switch Rate: 0.35/s
-    • Uptime:              46305 seconds
+    • Active Processes:    3
+    • Context Switch Rate: 0.41/s
+    • Uptime:              52932 seconds
     • Is Overloaded:       NO
   ▼ CALCULS
     • Queue Length: 0
@@ -53,34 +53,34 @@ listening for connections on port 9000UDP listening on port 9001
   ▼ IDENTITÉ
     • UUID:      f66b4762-c214-41eb-b0be-9d91b3170b6c
     • IP:        192.168.1.184:9000
-    • Timestamp: 2026-07-04 04:27:37 (1783135657)
+    • Timestamp: 2026-07-04 06:18:04 (1783142284)
     • Type:      1
     • Role:      3
   ▼ CPU
-    • Usage:           29.12%
-    • Load Average:    1.93, 2.31, 2.54
+    • Usage:           28.10%
+    • Load Average:    3.33, 4.64, 3.80
     • Cores:           4
     • Threads/Core:    8
-    • Frequency:       1313.72 MHz
+    • Frequency:       3400.00 MHz
     • Model:           Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz
   ▼ MÉMOIRE (RAM)
-    • Usage:           81.25%
-    • Available:       2976.71 MB
-    • Used:            12904 MB
+    • Usage:           84.10%
+    • Available:       2524.49 MB
+    • Used:            13356 MB
     • Total:           15881 MB
   ▼ DISQUE
     • Usage:           0.00%
-    • Used:            543839 MB
+    • Used:            544023 MB
     • Total:           599296 MB
     • Mount Point:     /
   ▼ RÉSEAU
     • Bandwidth:       0.00 Mbps
-    • Connections:     55
+    • Connections:     59
     • Interface:       wlp3s0
   ▼ SYSTÈME
-    • Active Processes:    5
-    • Context Switch Rate: 0.35/s
-    • Uptime:              46305 seconds
+    • Active Processes:    3
+    • Context Switch Rate: 0.41/s
+    • Uptime:              52932 seconds
     • Is Overloaded:       NO
   ▼ CALCULS
     • Queue Length: 0

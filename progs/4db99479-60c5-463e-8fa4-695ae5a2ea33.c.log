@@ -1,0 +1,44 @@
+[SubmittedProg] Starting distributed sum test...
+[MasterExec] Sending NODES query with reply address 192.168.1.184:9000 (queue: Is7dQFS)
+[MasterExec] NODES query sent to 192.168.1.199:9000
+Deleted queue: Is7dQFS (id=98364)
+[MasterExec] 1 worker(s) available
+[MasterExec] WARNING: requested 2 node(s) but only 1 available — proceeding with 1
+
+=================================
+NODE 0 ASSIGNMENT DETAILS
+=================================
+uuid          : e3ce58df-0b22-4bf6-8cc9-a5cd6c7a15e9
+ip            : 192.168.1.151
+cpu usage     : 0.22
+ram usage     : 63.82
+function      : sum_array_worker
+nb chunk bytes: 588
+param count   : 2
+[Team] Thread tid=0 started  function=sum_array_worker  worker=192.168.1.151
+[Team] Serialized param chunk size: 588 bytes, contains 2 params
+[Team] Thread tid=0 resuming — sending to worker
+[Master] Sent CHCK for '4db99479-60c5-463e-8fa4-695ae5a2ea33' to worker 192.168.1.151:9000
+[Master] Waiting for CHCK response on queue CxPBIDp...
+[Master] CHCK response: NONE
+Deleted queue: CxPBIDp (id=98365)
+[Team] Program missing on worker, sending source...
+[Master] Sent PROG message to worker 192.168.1.151:9000
+[Master] Waiting for PROG response on queue NZKONnX...
+[Master] PROG response: task_mq=WE8plYB
+Deleted queue: NZKONnX (id=98366)
+[Team] Sending task to queue: WE8plYB
+[Master] Sent task (function=sum_array_worker) to queue WE8plYB
+[Master] Waiting for task result on queue 4QtOlhD...
+[Master] Task result: 5050
+Deleted queue: 4QtOlhD (id=98367)
+
+=================================
+AGGREGATED EXECUTION RESULTS
+=================================
+---------------------------------
+FINAL REDUCED RESULT: 5050
+=================================
+
+Node 0 partial result: 5050
+[SubmittedProg] Done.

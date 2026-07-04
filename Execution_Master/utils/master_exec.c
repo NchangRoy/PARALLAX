@@ -95,6 +95,32 @@ void execute_fxn(ParallaxParam *params, int param_count, char *fxn_name,
   }
   printf("[MasterExec] %d worker(s) available\n", actual_node_count);
 
+  /* Hard RAM filter (ram:N annotation): unlike the CPU/RAM weighting below,
+     which only deprioritizes low-resource nodes, this excludes a node from
+     candidacy entirely if it doesn't meet the requirement. */
+  if (ctx && ctx->min_ram_mb > 0) {
+    int kept = 0;
+    for (int i = 0; i < actual_node_count; i++) {
+      if (metrics[i].mem_available_mb >= ctx->min_ram_mb) {
+        if (kept != i) {
+          metrics[kept] = metrics[i];
+        }
+        kept++;
+      } else {
+        printf("[MasterExec] Excluding node %s: %.0f MB available < ram:%d MB required\n",
+               metrics[i].uuid, metrics[i].mem_available_mb, ctx->min_ram_mb);
+      }
+    }
+    actual_node_count = kept;
+    if (actual_node_count == 0) {
+      printf("[MasterExec] Error: no node meets the ram:%d requirement! Aborting task.\n",
+             ctx->min_ram_mb);
+      return;
+    }
+    printf("[MasterExec] %d worker(s) meet ram:%d MB requirement\n",
+           actual_node_count, ctx->min_ram_mb);
+  }
+
   /* Sort available nodes by score descending (best first) */
   for (int i = 1; i < actual_node_count; i++) {
     MachineMetrics tmp = metrics[i];
@@ -124,7 +150,8 @@ void execute_fxn(ParallaxParam *params, int param_count, char *fxn_name,
 
   /* ── create task assignments using the structured params ── */
   task_assignment *assignments =
-      create_assignments(params, param_count, fxn_name, metrics, node_count);
+      create_assignments(params, param_count, fxn_name, metrics, node_count,
+                          ctx ? ctx->align : 0);
 
   // display assignments
   for (int i = 0; i < node_count; i++) {

@@ -66,7 +66,7 @@ int main(void) {
 
     printf("[Main] Splitting task across %d nodes using orchestrator...\n", node_count);
     task_assignment *assignments = create_assignments(
-        params, 2, "sum_worker", metrics, node_count
+        params, 2, "sum_worker", metrics, node_count, 0
     );
 
     if (!assignments) {

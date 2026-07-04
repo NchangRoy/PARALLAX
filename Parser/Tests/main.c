@@ -37,7 +37,8 @@ int main() {
             sizeof(values),
             "process_array",
             nodes,
-            node_count
+            node_count,
+            0
         );
 
     if (!assignments) {

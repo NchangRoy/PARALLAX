@@ -206,8 +206,10 @@ public:
     if (!func)
       return;
 
-    int vcpus = 0; /* 0 = auto — master caps at PARALLAX_DEFAULT_NODE_CAP */
+    int cpus = 0; /* 0 = auto — master caps at PARALLAX_DEFAULT_NODE_CAP */
     std::string aggregator = "sum_reduce";
+    int min_ram_mb = 0; /* 0 = no requirement */
+    int align = 0;      /* 0/1 = no alignment (byte-granular split) */
     bool has_annotation = false;
 
     for (const Attr *A : func->attrs()) {
@@ -215,11 +217,17 @@ public:
         std::string annotation = AA->getAnnotation().str();
         llvm::outs() << "Annotation: " << annotation << " at function "
                      << func->getNameAsString() << "\n";
-        if (annotation.find("vcpus:") == 0) {
-          vcpus = std::stoi(annotation.substr(6));
+        if (annotation.find("cpus:") == 0) {
+          cpus = std::stoi(annotation.substr(5));
           has_annotation = true;
         } else if (annotation.find("reduce:") == 0) {
           aggregator = annotation.substr(7);
+          has_annotation = true;
+        } else if (annotation.find("ram:") == 0) {
+          min_ram_mb = std::stoi(annotation.substr(4));
+          has_annotation = true;
+        } else if (annotation.find("align:") == 0) {
+          align = std::stoi(annotation.substr(6));
           has_annotation = true;
         } else if (annotation.find("goat:") == 0) {
           has_annotation = true;
@@ -306,12 +314,18 @@ public:
 
     dispatchStub += "    ParallaxExecutionCtx __parallax_ctx;\n"
                     "    __parallax_ctx.expected_node_count = " +
-                    std::to_string(vcpus) +
+                    std::to_string(cpus) +
                     ";\n"
                     "    strncpy(__parallax_ctx.aggregator_name, \"" +
                     aggregator +
                     "\", 63);\n"
                     "    __parallax_ctx.aggregator_name[63] = '\\0';\n"
+                    "    __parallax_ctx.min_ram_mb = " +
+                    std::to_string(min_ram_mb) +
+                    ";\n"
+                    "    __parallax_ctx.align = " +
+                    std::to_string(align) +
+                    ";\n"
                     "    execute_fxn(__parallax_params, " +
                     paramCount + ", \"" + workerName +
                     "\", &__parallax_ctx, __parallax_prog_code__, "

@@ -1,0 +1,8 @@
+Annotation: vcpus:2 at function sum_array
+Annotation: reduce:my_sum_reduce at function sum_array
+
+
+Transformed function sum_array into dispatch stub sum_array_generated
+
+Worker stub: sum_array_worker
+Written rewritten file to: /home/fureh_mitoto/Desktop/Parallax/GOAT-Plugs/progs/793df1bb-ace5-4743-b7ee-9aa1d0c3d981.c_parsed.c

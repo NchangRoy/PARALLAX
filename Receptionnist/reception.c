@@ -388,11 +388,19 @@ static void handle_get_nodes(int client_fd) {
             "%s{\"uuid\":\"%s\",\"ip\":\"%s\",\"port\":%d,"
             "\"role\":\"%s\",\"status\":\"%s\","
             "\"cpu\":%.2f,\"ram\":%.2f,"
-            "\"score\":%.2f,\"cores\":%d,\"model\":\"%s\"}",
+            "\"score\":%.2f,\"cores\":%d,\"model\":\"%s\","
+            "\"threads_per_core\":%d,\"freq_mhz\":%.0f,"
+            "\"ram_available_mb\":%.0f,\"ram_total_mb\":%ld,"
+            "\"disk_usage\":%.2f,\"disk_total_mb\":%ld,"
+            "\"network_iface\":\"%s\"}",
             first ? "" : ",",
             metrics[i].uuid, metrics[i].ip, metrics[i].port,
             rname, sname, metrics[i].cpu_usage, metrics[i].mem_usage,
-            metrics[i].score, metrics[i].cpu_cores, metrics[i].cpu_model);
+            metrics[i].score, metrics[i].cpu_cores, metrics[i].cpu_model,
+            metrics[i].cpu_threads_per_core, metrics[i].cpu_freq_mhz,
+            metrics[i].mem_available_mb, metrics[i].mem_total_mb,
+            metrics[i].disk_usage, metrics[i].disk_total_mb,
+            metrics[i].network_iface);
         first = 0;
     }
     pos += snprintf(json + pos, 32768 - pos, "]");
