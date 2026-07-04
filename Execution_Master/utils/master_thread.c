@@ -117,7 +117,6 @@ void *prog_listener_func(void *args) {
   char network_prefix[64] = "";
   char parallax_prefix[64] = "";
   char root_prefix[64] = "";
-  char parser_bin[128] = "";
 
   /* Detect working directory — root workspace vs Execution_Master subdir */
   if (access("Execution_Master/utils/master_exec.c", F_OK) == 0) {
@@ -125,37 +124,20 @@ void *prog_listener_func(void *args) {
     strcpy(network_prefix,  "Agent_Init/network/");
     strcpy(parallax_prefix, "parallax/");
     strcpy(root_prefix,     ".");
-    strcpy(parser_bin,      "Parser/build/mytool");
   } else {
     strcpy(prefix,          "utils/");
     strcpy(network_prefix,  "../Agent_Init/network/");
     strcpy(parallax_prefix, "../parallax/");
     strcpy(root_prefix,     "..");
-    strcpy(parser_bin,      "../Parser/build/mytool");
   }
 
-  /* Run parser: produces <filepath>_parsed.c next to the source */
-  char parse_cmd[512];
-  char parsed_filepath[280];
-  char parse_err_path[300];
-  snprintf(parsed_filepath, sizeof(parsed_filepath), "%s_parsed.c", filepath);
-  snprintf(parse_err_path, sizeof(parse_err_path), "%s.parse_err", filepath);
-  snprintf(parse_cmd, sizeof(parse_cmd),
-           "%s %s -- -I%s > %s 2>&1", parser_bin, filepath, root_prefix, parse_err_path);
-
-  printf("[Master] Parsing: %s\n", parse_cmd);
-  int parse_ret = system(parse_cmd);
-  if (parse_ret != 0 || access(parsed_filepath, F_OK) != 0) {
-    printf("[Master] Parsing failed (exit=%d) — aborting.\n", parse_ret);
-    size_t elen = 0;
-    char *err = read_file_all(parse_err_path, &elen);
-    const char *fallback = "Parsing failed (no output captured).";
-    send_prog_log(prog->program_name, 0, err ? err : fallback, err ? elen : strlen(fallback));
-    free(err);
-    free(prog);
-    return NULL;
-  }
-  printf("[Master] Parsed output: %s\n", parsed_filepath);
+  /* Parsing (Parser/build/mytool) now happens on the backend before the
+     code ever reaches the cluster (see backend_ui_parallax/app/services/
+     parser_svc.py + POST /api/tasks/<id>/parse) — what we receive in
+     prog->code here is already the dispatch-ready output (with
+     *_generated/*_worker functions and matcher() rewritten in), so we
+     compile it directly instead of re-invoking the parser. */
+  char *parsed_filepath = filepath;
 
   char compile_err_path[300];
   snprintf(compile_err_path, sizeof(compile_err_path), "%s/%s.compile_err",
