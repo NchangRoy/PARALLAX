@@ -1,0 +1,74 @@
+[SubmittedProg] Starting distributed matrix-vector multiply...
+[MasterExec] Sending NODES query with reply address 192.168.30.43:9000 (queue: LrMrhd2)
+[MasterExec] NODES query sent to 192.168.30.7:9000
+Deleted queue: LrMrhd2 (id=98308)
+[MasterExec] 2 worker(s) available
+[MasterExec] Using top 2 of 2 available node(s) (by score)
+
+=================================
+NODE 0 ASSIGNMENT DETAILS
+=================================
+uuid          : 09f2378c-11de-45a9-a455-4cf642b03f61
+ip            : 192.168.30.32
+cpu usage     : 0.67
+ram usage     : 43.11
+function      : matvec_mult_worker
+nb chunk bytes: 408
+param count   : 4
+
+=================================
+NODE 1 ASSIGNMENT DETAILS
+=================================
+uuid          : 6d1f53ed-5b18-41c8-bb76-55954f2c5ee1
+ip            : 192.168.30.182
+cpu usage     : 0.44
+ram usage     : 44.61
+function      : matvec_mult_worker
+nb chunk bytes: 408
+param count   : 4
+[Team] Thread tid=0 started  function=matvec_mult_worker  worker=192.168.30.32
+[Team] Serialized param chunk size: 408 bytes, contains 4 params
+[Team] Thread tid=1 started  function=matvec_mult_worker  worker=192.168.30.182
+[Team] Serialized param chunk size: 408 bytes, contains 4 params
+[Team] Thread tid=0 resuming — sending to worker
+[Master] Sent CHCK for 'f76d412c-036d-45b0-8721-54534297663e' to worker 192.168.30.32:9000
+[Master] Waiting for CHCK response on queue YgQmImn...
+[Master] CHCK response: NONE
+Deleted queue: YgQmImn (id=98322)
+[Team] Program missing on worker, sending source...
+[Master] Sent PROG message to worker 192.168.30.32:9000
+[Master] Waiting for PROG response on queue 7v2AJfA...
+[Master] PROG response: task_mq=xIxZnyi
+Deleted queue: 7v2AJfA (id=98323)
+[Team] Sending task to queue: xIxZnyi
+[Master] Sent task (function=matvec_mult_worker) to queue xIxZnyi
+[Master] Waiting for task result on queue w2QrXpr...
+[Master] Task result: -1,-2
+Deleted queue: w2QrXpr (id=98327)
+[Team] Thread tid=1 resuming — sending to worker
+[Master] Sent CHCK for 'f76d412c-036d-45b0-8721-54534297663e' to worker 192.168.30.182:9000
+[Master] Waiting for CHCK response on queue p3n0kXg...
+[Master] CHCK response: NONE
+Deleted queue: p3n0kXg (id=98328)
+[Team] Program missing on worker, sending source...
+[Master] Sent PROG message to worker 192.168.30.182:9000
+[Master] Waiting for PROG response on queue pY8b5Nl...
+[Master] PROG response: task_mq=1XHLbfk
+Deleted queue: pY8b5Nl (id=98329)
+[Team] Sending task to queue: 1XHLbfk
+[Master] Sent task (function=matvec_mult_worker) to queue 1XHLbfk
+[Master] Waiting for task result on queue BZyyioW...
+[Master] Task result: -3,-4
+Deleted queue: BZyyioW (id=98330)
+
+=================================
+
+
+=================================
+---------------------------------
+FINAL REDUCED RESULT: -1,-2;-3,-4
+=================================
+
+Node 0 partial result: -1,-2
+Node 1 partial result: -3,-4
+[SubmittedProg] Done.

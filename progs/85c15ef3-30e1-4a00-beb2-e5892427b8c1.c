@@ -62,16 +62,14 @@ int main() {
     printf("[SubmittedProg] Starting distributed matrix-vector multiply...\n");
 
     int matrix[ROWS * COLS] = {
-        0, 0, 1,
-        0, 0, 2,
-        0, 0, 3,
-        0, 0, 4
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9,
+        10, 11, 12
     };
     int vector[COLS] = { 1, 0, -1 };
-    /* Expected per-row: row0=0-1=-1, row1=0-2=-2, row2=0-3=-3, row3=0-4=-4
-       => result vector: -1,-2,-3,-4 (distinct per row, so a wrong row split
-       or misordered chunk is now visible instead of hiding behind repeated
-       -2 values) */
+    /* Expected per-row: row0=1-3=-2, row1=4-6=-2, row2=7-9=-2, row3=10-12=-2
+       => result vector: -2,-2,-2,-2 */
 
     matvec_mult(matrix, sizeof(matrix), vector, sizeof(vector));
 

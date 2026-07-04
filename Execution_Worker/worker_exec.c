@@ -107,6 +107,11 @@ static void task_listen_loop(int mq_id, const char *prog_name) {
     recv_task_t *task = (recv_task_t *)message->data;
 
     printf("[Worker] Received task: function=%s\n", task->function_name);
+    /* Machine-parseable marker: lets the UI figure out which program is
+       currently executing on this node by scanning the node's own log for
+       the last RUNNING_PROGRAM not yet followed by a matching
+       FINISHED_PROGRAM (see Parallax-Portal/src/utils/nodeActivity.js). */
+    printf("[WorkerTask] RUNNING_PROGRAM=%s\n", prog_name);
 
     /* Create a pipe so the child binary can write its result back */
     int pipefd[2];
@@ -155,6 +160,7 @@ static void task_listen_loop(int mq_id, const char *prog_name) {
     waitpid(run_pid, &status, 0);
 
     printf("[Worker] Task result: %s\n", ret_buf);
+    printf("[WorkerTask] FINISHED_PROGRAM=%s\n", prog_name);
 
     /* Send result back to master on the one-shot reply queue */
     message_t *result_msg = malloc(sizeof(message_t) + strlen(ret_buf) + 1);

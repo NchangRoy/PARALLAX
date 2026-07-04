@@ -1,1 +1,1 @@
-__attribute__((weak)) char controller_ip[16] = "192.168.30.7";
+__attribute__((weak)) char controller_ip[16] = "192.168.1.199";

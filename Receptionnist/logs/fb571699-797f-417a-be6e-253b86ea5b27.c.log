@@ -1,0 +1,44 @@
+[SubmittedProg] Starting distributed matrix-vector multiply...
+[MasterExec] Sending NODES query with reply address 192.168.30.43:9000 (queue: DmFB0rn)
+[MasterExec] NODES query sent to 192.168.30.7:9000
+Deleted queue: DmFB0rn (id=98331)
+[MasterExec] 1 worker(s) available
+[MasterExec] WARNING: requested 2 node(s) but only 1 available — proceeding with 1
+
+=================================
+NODE 0 ASSIGNMENT DETAILS
+=================================
+uuid          : 6d1f53ed-5b18-41c8-bb76-55954f2c5ee1
+ip            : 192.168.30.182
+cpu usage     : 0.32
+ram usage     : 44.56
+function      : matvec_mult_worker
+nb chunk bytes: 432
+param count   : 4
+[Team] Thread tid=0 started  function=matvec_mult_worker  worker=192.168.30.182
+[Team] Serialized param chunk size: 432 bytes, contains 4 params
+[Team] Thread tid=0 resuming — sending to worker
+[Master] Sent CHCK for 'fb571699-797f-417a-be6e-253b86ea5b27' to worker 192.168.30.182:9000
+[Master] Waiting for CHCK response on queue cahfaaR...
+[Master] CHCK response: NONE
+Deleted queue: cahfaaR (id=98332)
+[Team] Program missing on worker, sending source...
+[Master] Sent PROG message to worker 192.168.30.182:9000
+[Master] Waiting for PROG response on queue Yn73Il1...
+[Master] PROG response: task_mq=0wFYBxz
+Deleted queue: Yn73Il1 (id=98334)
+[Team] Sending task to queue: 0wFYBxz
+[Master] Sent task (function=matvec_mult_worker) to queue 0wFYBxz
+[Master] Waiting for task result on queue MP4Vnzo...
+[Master] Task result: -1,-2,-3,-4
+Deleted queue: MP4Vnzo (id=98337)
+
+=================================
+AGGREGATED EXECUTION RESULTS
+=================================
+---------------------------------
+FINAL REDUCED RESULT: -1,-2,-3,-4
+=================================
+
+Node 0 partial result: -1,-2,-3,-4
+[SubmittedProg] Done.

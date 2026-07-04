@@ -1,20 +1,17 @@
-msgsnd outgoing: Invalid argument
-send_task_message_and_wait: msgrcv: Identifier removed
-delete_mq: msgctl IPC_RMID: Invalid argument
 [SubmittedProg] Starting distributed matrix-vector multiply...
-[MasterExec] Sending NODES query with reply address 192.168.30.43:9000 (queue: 9fDipIP)
+[MasterExec] Sending NODES query with reply address 192.168.30.43:9000 (queue: a2llUlo)
 [MasterExec] NODES query sent to 192.168.30.7:9000
-Deleted queue: 9fDipIP (id=65579)
+Deleted queue: a2llUlo (id=65596)
 [MasterExec] 2 worker(s) available
 [MasterExec] Using top 2 of 2 available node(s) (by score)
 
 =================================
 NODE 0 ASSIGNMENT DETAILS
 =================================
-uuid          : cc2003d3-e14d-475a-8adf-eaa8830429f9
+uuid          : 09f2378c-11de-45a9-a455-4cf642b03f61
 ip            : 192.168.30.32
-cpu usage     : 1.04
-ram usage     : 50.33
+cpu usage     : 0.83
+ram usage     : 43.29
 function      : matvec_mult_worker
 nb chunk bytes: 408
 param count   : 4
@@ -24,8 +21,8 @@ NODE 1 ASSIGNMENT DETAILS
 =================================
 uuid          : 6d1f53ed-5b18-41c8-bb76-55954f2c5ee1
 ip            : 192.168.30.182
-cpu usage     : 0.65
-ram usage     : 44.46
+cpu usage     : 0.66
+ram usage     : 44.61
 function      : matvec_mult_worker
 nb chunk bytes: 408
 param count   : 4
@@ -34,42 +31,43 @@ param count   : 4
 [Team] Thread tid=1 started  function=matvec_mult_worker  worker=192.168.30.182
 [Team] Serialized param chunk size: 408 bytes, contains 4 params
 [Team] Thread tid=0 resuming — sending to worker
-[Master] Sent CHCK for 'dc84d162-cc94-402b-863a-8fe008d27053' to worker 192.168.30.32:9000
-[Master] Waiting for CHCK response on queue bynyENf...
+[Master] Sent CHCK for '85c15ef3-30e1-4a00-beb2-e5892427b8c1' to worker 192.168.30.32:9000
+[Master] Waiting for CHCK response on queue aTRlpJU...
 [Master] CHCK response: NONE
-Deleted queue: bynyENf (id=65580)
+Deleted queue: aTRlpJU (id=65597)
 [Team] Program missing on worker, sending source...
 [Master] Sent PROG message to worker 192.168.30.32:9000
-[Master] Waiting for PROG response on queue kIX6FaP...
+[Master] Waiting for PROG response on queue vBPtLZi...
+[Master] PROG response: task_mq=Bgr5vng
+Deleted queue: vBPtLZi (id=65598)
+[Team] Sending task to queue: Bgr5vng
+[Master] Sent task (function=matvec_mult_worker) to queue Bgr5vng
+[Master] Waiting for task result on queue uaCZvns...
+[Master] Task result: -2,-2
+Deleted queue: uaCZvns (id=98304)
 [Team] Thread tid=1 resuming — sending to worker
-[Master] Sent CHCK for 'dc84d162-cc94-402b-863a-8fe008d27053' to worker 192.168.30.182:9000
-[Master] Waiting for CHCK response on queue YT46LMV...
+[Master] Sent CHCK for '85c15ef3-30e1-4a00-beb2-e5892427b8c1' to worker 192.168.30.182:9000
+[Master] Waiting for CHCK response on queue ABTyr3K...
 [Master] CHCK response: NONE
-Deleted queue: YT46LMV (id=65582)
+Deleted queue: ABTyr3K (id=98305)
 [Team] Program missing on worker, sending source...
 [Master] Sent PROG message to worker 192.168.30.182:9000
-[Master] Waiting for PROG response on queue pjYompu...
-[Master] PROG response: task_mq=7h2L0Qz
-Deleted queue: pjYompu (id=65583)
-[Team] Sending task to queue: 7h2L0Qz
-[Master] Sent task (function=matvec_mult_worker) to queue 7h2L0Qz
-[Master] Waiting for task result on queue BV7AjkW...
+[Master] Waiting for PROG response on queue ceWaYDl...
+[Master] PROG response: task_mq=HhGuJ1D
+Deleted queue: ceWaYDl (id=98306)
+[Team] Sending task to queue: HhGuJ1D
+[Master] Sent task (function=matvec_mult_worker) to queue HhGuJ1D
+[Master] Waiting for task result on queue bc4wBHP...
 [Master] Task result: -2,-2
-Deleted queue: BV7AjkW (id=65584)
-[Master] PROG response: task_mq=TUhsSpM
-Deleted queue: kIX6FaP (id=65581)
-[Team] Sending task to queue: TUhsSpM
-[Master] Sent task (function=matvec_mult_worker) to queue TUhsSpM
-[Master] Waiting for task result on queue LV0TtNO...
-[Team] Failed to send task.
+Deleted queue: bc4wBHP (id=98307)
 
 =================================
 AGGREGATED EXECUTION RESULTS
 =================================
 ---------------------------------
-FINAL REDUCED RESULT: -2,-2
+FINAL REDUCED RESULT: -2,-2;-2,-2
 =================================
 
-Node 0 partial result: (null)
+Node 0 partial result: -2,-2
 Node 1 partial result: -2,-2
 [SubmittedProg] Done.

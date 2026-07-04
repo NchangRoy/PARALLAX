@@ -9,35 +9,35 @@ listening for connections on port 9000UDP listening on port 9001
 ╚════════════════════════════════════════════════════════════════════╝
   ▼ IDENTITÉ
     • UUID:      f66b4762-c214-41eb-b0be-9d91b3170b6c
-    • IP:        192.168.30.43:9000
-    • Timestamp: 2026-07-03 18:51:49 (1783101109)
+    • IP:        192.168.1.184:9000
+    • Timestamp: 2026-07-04 04:27:36 (1783135656)
     • Type:      3
     • Role:      3
   ▼ CPU
-    • Usage:           20.57%
-    • Load Average:    1.38, 2.01, 2.36
+    • Usage:           29.12%
+    • Load Average:    1.93, 2.31, 2.54
     • Cores:           4
     • Threads/Core:    8
-    • Frequency:       3200.00 MHz
+    • Frequency:       1313.72 MHz
     • Model:           Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz
   ▼ MÉMOIRE (RAM)
-    • Usage:           70.77%
-    • Available:       4641.69 MB
-    • Used:            11239 MB
+    • Usage:           81.25%
+    • Available:       2976.71 MB
+    • Used:            12904 MB
     • Total:           15881 MB
   ▼ DISQUE
     • Usage:           0.00%
-    • Used:            542853 MB
+    • Used:            543839 MB
     • Total:           599296 MB
     • Mount Point:     /
   ▼ RÉSEAU
     • Bandwidth:       0.00 Mbps
-    • Connections:     106
+    • Connections:     55
     • Interface:       wlp3s0
   ▼ SYSTÈME
     • Active Processes:    5
-    • Context Switch Rate: 0.10/s
-    • Uptime:              11758 seconds
+    • Context Switch Rate: 0.35/s
+    • Uptime:              46305 seconds
     • Is Overloaded:       NO
   ▼ CALCULS
     • Queue Length: 0
@@ -52,35 +52,35 @@ listening for connections on port 9000UDP listening on port 9001
 ╚════════════════════════════════════════════════════════════════════╝
   ▼ IDENTITÉ
     • UUID:      f66b4762-c214-41eb-b0be-9d91b3170b6c
-    • IP:        192.168.30.43:9000
-    • Timestamp: 2026-07-03 18:51:50 (1783101110)
+    • IP:        192.168.1.184:9000
+    • Timestamp: 2026-07-04 04:27:37 (1783135657)
     • Type:      1
     • Role:      3
   ▼ CPU
-    • Usage:           20.57%
-    • Load Average:    1.38, 2.01, 2.36
+    • Usage:           29.12%
+    • Load Average:    1.93, 2.31, 2.54
     • Cores:           4
     • Threads/Core:    8
-    • Frequency:       3200.00 MHz
+    • Frequency:       1313.72 MHz
     • Model:           Intel(R) Core(TM) i7-2820QM CPU @ 2.30GHz
   ▼ MÉMOIRE (RAM)
-    • Usage:           70.77%
-    • Available:       4641.69 MB
-    • Used:            11239 MB
+    • Usage:           81.25%
+    • Available:       2976.71 MB
+    • Used:            12904 MB
     • Total:           15881 MB
   ▼ DISQUE
     • Usage:           0.00%
-    • Used:            542853 MB
+    • Used:            543839 MB
     • Total:           599296 MB
     • Mount Point:     /
   ▼ RÉSEAU
     • Bandwidth:       0.00 Mbps
-    • Connections:     106
+    • Connections:     55
     • Interface:       wlp3s0
   ▼ SYSTÈME
     • Active Processes:    5
-    • Context Switch Rate: 0.10/s
-    • Uptime:              11758 seconds
+    • Context Switch Rate: 0.35/s
+    • Uptime:              46305 seconds
     • Is Overloaded:       NO
   ▼ CALCULS
     • Queue Length: 0
@@ -92,4 +92,4 @@ Waiting for controller's IP reply on port 9001 via message queue...
 
 --- Controller IP Received ---
 Message Type: HELLO
-Contro
+Controll

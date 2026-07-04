@@ -1,3 +1,6 @@
+// __parallax_callback_host__ = "127.0.0.1"
+// __parallax_callback_port__ = "5000"
+// __parallax_prog_name__ = "fb571699-797f-417a-be6e-253b86ea5b27"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
